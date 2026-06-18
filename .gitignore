@@ -3,4 +3,6 @@ server/data/
 server/.env
 miniprogram/node_modules/
 miniprogram/dist/
+*.apk
+*.APK
 .DS_Store
