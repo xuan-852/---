@@ -1,3 +1,13 @@
+-- 用户表（存储登录凭证，密码加密存储）
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL UNIQUE,     -- 学号
+  password_enc TEXT NOT NULL,        -- 加密后的密码（AES-GCM）
+  semester TEXT DEFAULT '',          -- 当前学期
+  last_login_at TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 -- 课程表
 CREATE TABLE IF NOT EXISTS courses (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

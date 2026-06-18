@@ -26,6 +26,14 @@ function request(path, options = {}) {
 }
 
 module.exports = {
+  // 用户
+  getUserStatus: () => request('/user/status'),
+  bindAccount: (username, password) => request('/user/bind', {
+    method: 'POST',
+    data: { username, password }
+  }),
+  refreshData: () => request('/refresh', { method: 'POST' }),
+
   // 课表
   getSchedule: (week) => request('/schedule', { data: { week } }),
 

@@ -12,9 +12,6 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// 初始化数据库
-initDB();
-
 // 路由
 app.use('/api/pet', petRoutes);
 app.use('/api', miniRoutes);
@@ -24,6 +21,20 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
-app.listen(PORT, () => {
-  console.log(`[Server] 启动成功 → http://localhost:${PORT}`);
+// 异步启动
+async function start() {
+  await initDB();
+
+  // 定时任务
+  const { startScheduler } = require('./services/scheduler');
+  startScheduler();
+
+  app.listen(PORT, () => {
+    console.log(`[Server] 启动成功 → http://localhost:${PORT}`);
+  });
+}
+
+start().catch(e => {
+  console.error('[Server] 启动失败:', e);
+  process.exit(1);
 });

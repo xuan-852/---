@@ -47,10 +47,10 @@ function pushTodaySchedule() {
     );
 
     const id = uuidv4();
-    db.prepare(`
-      INSERT INTO push_messages (id, type, title, body)
-      VALUES (?, 'schedule_reminder', '📚 今日课表', ?)
-    `).run(id, lines.join('\n'));
+    db.run(
+      `INSERT INTO push_messages (id, type, title, body) VALUES (?, 'schedule_reminder', '📚 今日课表', ?)`,
+      [id, lines.join('\n')]
+    );
 
     console.log('[Scheduler] 已推送今日课表');
   } catch (e) {

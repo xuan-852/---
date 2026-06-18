@@ -12,6 +12,8 @@ get_captcha.js
 ids_*.html
 cas_test*.html
 redirect_result.html
+captcha.png
+tests/
 
 # === 环境变量与配置 ===
 .env
@@ -28,6 +30,8 @@ data/*.sqlite
 # === 构建输出 ===
 dist/
 build/
+*.zip
+apk_extracted/
 
 # === 日志 ===
 *.log
