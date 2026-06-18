@@ -1,0 +1,45 @@
+# === 隐私安全：调试探针（含硬编码凭据） ===
+login*.js
+login*.html
+test*.js
+*_debug*.js
+explore*.js
+analyze*.js
+check*.js
+fetch_*.js
+encrypt.js
+get_captcha.js
+ids_*.html
+cas_test*.html
+redirect_result.html
+
+# === 环境变量与配置 ===
+.env
+.env.*
+*.local
+
+# === 依赖 ===
+node_modules/
+
+# === 数据库（可能含用户数据） ===
+data/*.db
+data/*.sqlite
+
+# === 构建输出 ===
+dist/
+build/
+
+# === 日志 ===
+*.log
+npm-debug.log*
+
+# === 操作系统 ===
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# === 编辑器 ===
+.vscode/
+.idea/
+*.sublime-*
