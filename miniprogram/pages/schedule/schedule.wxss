@@ -1,0 +1,80 @@
+.container {
+  min-height: 100vh;
+  background: #0f0f23;
+  color: #e0e0e0;
+  padding: 20rpx;
+}
+
+.week-picker {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 30rpx 0;
+}
+
+.arrow {
+  font-size: 48rpx;
+  color: #7c4dff;
+  padding: 0 40rpx;
+  font-weight: bold;
+}
+
+.week-label {
+  font-size: 36rpx;
+  color: #fff;
+  font-weight: bold;
+}
+
+.schedule-scroll {
+  white-space: nowrap;
+  height: calc(100vh - 200rpx);
+}
+
+.schedule-grid {
+  display: flex;
+  gap: 10rpx;
+}
+
+.day-column {
+  width: 180rpx;
+  display: inline-block;
+  vertical-align: top;
+}
+
+.day-header {
+  text-align: center;
+  background: #1a1a3e;
+  color: #7c4dff;
+  padding: 16rpx;
+  border-radius: 12rpx;
+  font-weight: bold;
+  margin-bottom: 10rpx;
+}
+
+.mini-course {
+  background: #1a1a3e;
+  border-radius: 10rpx;
+  padding: 12rpx;
+  margin-bottom: 8rpx;
+  border-left: 4rpx solid #7c4dff;
+}
+
+.mini-name {
+  font-size: 24rpx;
+  color: #fff;
+  font-weight: bold;
+  display: block;
+}
+
+.mini-time {
+  font-size: 20rpx;
+  color: #7c4dff;
+  display: block;
+  margin: 4rpx 0;
+}
+
+.mini-location {
+  font-size: 20rpx;
+  color: #888;
+  display: block;
+}

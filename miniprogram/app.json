@@ -1,0 +1,38 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/schedule/schedule",
+    "pages/scores/scores",
+    "pages/exams/exams",
+    "pages/reminders/reminders"
+  ],
+  "window": {
+    "navigationBarTitleText": "南理工课表助手",
+    "navigationBarBackgroundColor": "#1a1a2e",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#0f0f23"
+  },
+  "tabBar": {
+    "color": "#666",
+    "selectedColor": "#7c4dff",
+    "backgroundColor": "#1a1a2e",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "今天",
+        "iconPath": "assets/today.png"
+      },
+      {
+        "pagePath": "pages/schedule/schedule",
+        "text": "课表",
+        "iconPath": "assets/schedule.png"
+      },
+      {
+        "pagePath": "pages/scores/scores",
+        "text": "成绩",
+        "iconPath": "assets/score.png"
+      }
+    ]
+  }
+}

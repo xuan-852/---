@@ -1,0 +1,75 @@
+.container {
+  min-height: 100vh;
+  background: #0f0f23;
+  color: #e0e0e0;
+  padding: 20rpx 30rpx;
+}
+
+.gpa-card {
+  background: linear-gradient(135deg, #7c4dff, #448aff);
+  border-radius: 20rpx;
+  padding: 40rpx;
+  text-align: center;
+  margin-bottom: 30rpx;
+}
+
+.gpa-label {
+  font-size: 28rpx;
+  color: rgba(255,255,255,0.8);
+  display: block;
+}
+
+.gpa-value {
+  font-size: 72rpx;
+  color: #fff;
+  font-weight: bold;
+  display: block;
+  margin-top: 10rpx;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 20rpx;
+  display: block;
+}
+
+.score-card {
+  background: #1a1a3e;
+  border-radius: 14rpx;
+  padding: 24rpx;
+  margin-bottom: 14rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.score-name {
+  font-size: 30rpx;
+  color: #fff;
+  font-weight: bold;
+  display: block;
+}
+
+.score-semester {
+  font-size: 22rpx;
+  color: #888;
+  display: block;
+  margin-top: 6rpx;
+}
+
+.score-value {
+  font-size: 40rpx;
+  font-weight: bold;
+}
+
+.score-value.pass { color: #4caf50; }
+.score-value.fail { color: #f44336; }
+
+.score-credit {
+  font-size: 22rpx;
+  color: #666;
+  display: block;
+  text-align: right;
+}

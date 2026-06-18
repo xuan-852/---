@@ -1,0 +1,20 @@
+<view class="container">
+  <view class="gpa-card">
+    <text class="gpa-label">当前 GPA</text>
+    <text class="gpa-value">{{gpa}}</text>
+  </view>
+
+  <view class="section">
+    <text class="section-title">📊 各科成绩</text>
+    <view wx:for="{{scores}}" wx:key="id" class="score-card">
+      <view class="score-left">
+        <text class="score-name">{{item.course_name}}</text>
+        <text class="score-semester">{{item.semester}}</text>
+      </view>
+      <view class="score-right">
+        <text class="score-value {{item.score >= 60 ? 'pass' : 'fail'}}">{{item.score}}</text>
+        <text class="score-credit">{{item.credit}} 学分</text>
+      </view>
+    </view>
+  </view>
+</view>

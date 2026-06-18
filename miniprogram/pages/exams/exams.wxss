@@ -1,0 +1,43 @@
+.container {
+  min-height: 100vh;
+  background: #0f0f23;
+  color: #e0e0e0;
+  padding: 20rpx 30rpx;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 20rpx;
+  display: block;
+}
+
+.empty {
+  text-align: center;
+  padding: 60rpx;
+  color: #666;
+  font-size: 28rpx;
+}
+
+.exam-card {
+  background: #1a1a3e;
+  border-radius: 14rpx;
+  padding: 24rpx;
+  margin-bottom: 14rpx;
+  border-left: 6rpx solid #ff6b6b;
+}
+
+.exam-title {
+  font-size: 30rpx;
+  color: #ff6b6b;
+  font-weight: bold;
+  display: block;
+  margin-bottom: 10rpx;
+}
+
+.exam-body {
+  font-size: 26rpx;
+  color: #ccc;
+  display: block;
+}

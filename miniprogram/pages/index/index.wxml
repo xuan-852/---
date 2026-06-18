@@ -1,0 +1,36 @@
+<view class="container">
+  <!-- 头部 -->
+  <view class="header">
+    <text class="date">{{dateStr}}</text>
+    <text class="week">第 {{week}} 周</text>
+  </view>
+
+  <!-- 今日课表 -->
+  <view class="section">
+    <text class="section-title">📖 今日课程</text>
+    <view wx:if="{{todayCourses.length === 0}}" class="empty">
+      <text>🎉 今天没有课~</text>
+    </view>
+    <view wx:for="{{todayCourses}}" wx:key="id" class="course-card">
+      <view class="course-time">{{item.start_time}}-{{item.end_time}}</view>
+      <view class="course-info">
+        <text class="course-name">{{item.name}}</text>
+        <text class="course-location">{{item.location}}</text>
+      </view>
+      <view class="course-slot">第{{item.start_slot}}-{{item.end_slot}}节</view>
+    </view>
+  </view>
+
+  <!-- 快捷入口 -->
+  <view class="quick-actions">
+    <navigator url="/pages/schedule/schedule" class="action-btn">
+      <text>📅 完整课表</text>
+    </navigator>
+    <navigator url="/pages/scores/scores" class="action-btn">
+      <text>📊 成绩查询</text>
+    </navigator>
+    <navigator url="/pages/exams/exams" class="action-btn">
+      <text>📝 考试安排</text>
+    </navigator>
+  </view>
+</view>

@@ -1,0 +1,22 @@
+<view class="container">
+  <!-- 周选择器 -->
+  <view class="week-picker">
+    <view class="arrow" bindtap="prevWeek">‹</view>
+    <text class="week-label">第 {{currentWeek}} 周</text>
+    <view class="arrow" bindtap="nextWeek">›</view>
+  </view>
+
+  <!-- 课表网格 -->
+  <scroll-view scroll-x class="schedule-scroll">
+    <view class="schedule-grid">
+      <view wx:for="{{days}}" wx:key="*this" class="day-column">
+        <view class="day-header">{{item}}</view>
+        <view wx:for="{{scheduleData[index] || []}}" wx:key="id" class="mini-course">
+          <text class="mini-name">{{item.name}}</text>
+          <text class="mini-time">{{item.start_time}}</text>
+          <text class="mini-location">{{item.location}}</text>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+</view>

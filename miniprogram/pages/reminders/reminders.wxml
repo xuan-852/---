@@ -1,0 +1,17 @@
+<view class="container">
+  <view class="section">
+    <text class="section-title">📋 桌面便签同步</text>
+    <view wx:if="{{reminders.length === 0}}" class="empty">
+      <text>暂无便签~</text>
+    </view>
+    <view wx:for="{{reminders}}" wx:key="id" class="reminder-card">
+      <view class="reminder-left {{item.done ? 'done' : ''}}">
+        <text class="reminder-text">{{item.text}}</text>
+        <text class="reminder-time">{{item.remind_at || '无提醒时间'}}</text>
+      </view>
+      <view class="reminder-status {{item.done ? 'done-tag' : 'pending-tag'}}">
+        {{item.done ? '✓ 已完成' : '⏳ 待办'}}
+      </view>
+    </view>
+  </view>
+</view>
