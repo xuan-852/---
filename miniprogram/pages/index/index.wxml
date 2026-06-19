@@ -1,23 +1,60 @@
 <view class="container">
-  <!-- 头部 -->
-  <view class="header">
-    <text class="date">{{dateStr}}</text>
-    <text class="week">第 {{week}} 周</text>
+  <!-- 加载遮罩（首次加载无缓存时显示） -->
+  <view wx:if="{{loading && !hasCache}}" class="loading-mask">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
   </view>
 
-  <!-- 今日课表 -->
+  <!-- 头部 -->
+  <view class="header">
+    <view class="header-top">
+      <text class="date">{{dateStr}}</text>
+      <view class="header-actions">
+        <navigator url="/pages/settings/settings" class="header-icon">⚙️</navigator>
+        <text class="week-badge">第 {{week}} / {{maxWeek}} 周</text>
+      </view>
+    </view>
+    <text class="semester-label">{{semester}}</text>
+    <view class="header-status">
+      <text wx:if="{{connected}}" class="status-text online">🟢 服务器已连接</text>
+      <text wx:elif="{{hasCache}}" class="status-text offline">🔴 未连上服务器 · 显示缓存</text>
+      <text wx:else class="status-text offline">🔴 未连上服务器 · 暂无数据</text>
+      <button class="refresh-btn" bindtap="onRefresh" disabled="{{loading}}">🔄</button>
+    </view>
+  </view>
+
+  <!-- 数据概览卡片 -->
+  <view class="summary-section">
+    <view class="summary-card" bindtap="tapNav" data-url="/pages/exams/exams">
+      <text class="summary-num">{{examCount}}</text>
+      <text class="summary-label">📝 考试</text>
+    </view>
+    <view class="summary-card" bindtap="tapNav" data-url="/pages/scores/scores">
+      <text class="summary-num">{{scoreCount}}</text>
+      <text class="summary-label">📊 成绩</text>
+    </view>
+    <view class="summary-card">
+      <text class="summary-num">{{scheduleCount > 0 ? scheduleCount : '--'}}</text>
+      <text class="summary-label">📅 课程</text>
+    </view>
+  </view>
+
+  <!-- 今日课程 -->
   <view class="section">
-    <text class="section-title">📖 今日课程</text>
-    <view wx:if="{{todayCourses.length === 0}}" class="empty">
-      <text>🎉 今天没有课~</text>
+    <view class="section-header">
+      <text class="section-title">📖 今日课程</text>
+    </view>
+    <view wx:if="{{todayCourses.length === 0 && !loading}}" class="empty-state">
+      <text class="empty-icon">🎉</text>
+      <text class="empty-text">今天没有课~</text>
     </view>
     <view wx:for="{{todayCourses}}" wx:key="id" class="course-card">
-      <view class="course-time">{{item.start_time}}-{{item.end_time}}</view>
+      <view class="course-time">{{item.start_time || ''}}-{{item.end_time || ''}}</view>
       <view class="course-info">
         <text class="course-name">{{item.name}}</text>
-        <text class="course-location">{{item.location}}</text>
+        <text class="course-location" wx:if="{{item.location}}">{{item.location}}</text>
       </view>
-      <view class="course-slot">第{{item.start_slot}}-{{item.end_slot}}节</view>
+      <view class="course-slot" wx:if="{{item.start_slot}}">第{{item.start_slot}}-{{item.end_slot}}节</view>
     </view>
   </view>
 
@@ -27,10 +64,10 @@
       <text>📅 完整课表</text>
     </navigator>
     <navigator url="/pages/scores/scores" class="action-btn">
-      <text>📊 成绩查询</text>
+      <text>📊 成绩</text>
     </navigator>
     <navigator url="/pages/exams/exams" class="action-btn">
-      <text>📝 考试安排</text>
+      <text>📝 考试</text>
     </navigator>
   </view>
 </view>

@@ -1,6 +1,6 @@
 {
   "name": "njust-schedule-server",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "南理工课表助手 - 云服务器后端",
   "main": "src/index.js",
   "scripts": {

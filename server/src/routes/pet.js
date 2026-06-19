@@ -86,4 +86,73 @@ router.get('/exams', auth, (req, res) => {
   res.json({ status: 'ok', data: { exams: rows } });
 });
 
+// ===== AI 数据查询接口（供符玄桌面端使用） =====
+
+// 查询全部成绩
+router.get('/scores', auth, (req, res) => {
+  const db = getDB();
+  const rows = db.prepare(
+    'SELECT * FROM scores ORDER BY semester DESC, course_name'
+  ).all();
+
+  res.json({ status: 'ok', data: { scores: rows } });
+});
+
+// 查询课表（按周次，默认当前周）
+router.get('/schedule', auth, (req, res) => {
+  const week = parseInt(req.query.week) || 0;
+  const db = getDB();
+
+  let rows;
+  if (week > 0) {
+    rows = db.prepare(
+      'SELECT * FROM courses WHERE week = ? ORDER BY day, start_slot'
+    ).all(week);
+  } else {
+    // 不指定周次则返回全部课表（供 AI 查看整体安排）
+    rows = db.prepare(
+      'SELECT * FROM courses ORDER BY week, day, start_slot'
+    ).all();
+  }
+
+  const maxWeekRow = db.prepare('SELECT MAX(week) as maxWeek FROM courses').get();
+  const maxWeek = maxWeekRow?.maxWeek || 20;
+
+  res.json({ status: 'ok', data: { week: week || 'all', maxWeek, courses: rows } });
+});
+
+// 查询用户绑定状态
+router.get('/user/status', auth, (req, res) => {
+  const db = getDB();
+  const user = db.prepare(
+    'SELECT id, username, semester, last_login_at FROM users LIMIT 1'
+  ).get();
+
+  if (!user) {
+    return res.json({ status: 'ok', data: { bound: false } });
+  }
+
+  // 查询总成绩数
+  const scoreCount = db.prepare('SELECT COUNT(*) as cnt FROM scores').get();
+  // 查询总考试数
+  const examCount = db.prepare('SELECT COUNT(*) as cnt FROM exams').get();
+  // 查询课表总周数
+  const maxWeekRow = db.prepare('SELECT MAX(week) as maxWeek FROM courses').get();
+
+  res.json({
+    status: 'ok',
+    data: {
+      bound: true,
+      username: user.username,
+      semester: user.semester,
+      lastLoginAt: user.last_login_at,
+      stats: {
+        scoresCount: scoreCount?.cnt || 0,
+        examsCount: examCount?.cnt || 0,
+        scheduleWeeks: maxWeekRow?.maxWeek || 0
+      }
+    }
+  });
+});
+
 module.exports = router;

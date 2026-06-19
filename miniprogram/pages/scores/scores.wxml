@@ -1,19 +1,37 @@
 <view class="container">
+  <!-- 连接状态 -->
+  <view wx:if="{{!connected}}" class="offline-tip">🔴 未连上服务器 · 显示缓存数据</view>
+
   <view class="gpa-card">
-    <text class="gpa-label">当前 GPA</text>
-    <text class="gpa-value">{{gpa}}</text>
+    <text class="gpa-label">累计 GPA</text>
+    <text class="gpa-value">{{totalGpa}}</text>
+    <text class="gpa-sub">总学分 {{totalCredits}}</text>
   </view>
 
   <view class="section">
-    <text class="section-title">📊 各科成绩</text>
-    <view wx:for="{{scores}}" wx:key="id" class="score-card">
-      <view class="score-left">
-        <text class="score-name">{{item.course_name}}</text>
-        <text class="score-semester">{{item.semester}}</text>
+    <view wx:for="{{semesters}}" wx:key="semester" class="semester-group">
+      <!-- 学期头 -->
+      <view class="semester-header" data-semester="{{item.semester}}" bindtap="toggleSemester">
+        <view class="semester-left">
+          <text class="semester-name">{{item.semester}}</text>
+          <text class="semester-meta">{{item.count}} 门 · GPA {{item.gpa}}</text>
+        </view>
+        <view class="semester-arrow {{expanded[item.semester] ? 'active' : ''}}">
+          ▶
+        </view>
       </view>
-      <view class="score-right">
-        <text class="score-value {{item.score >= 60 ? 'pass' : 'fail'}}">{{item.score}}</text>
-        <text class="score-credit">{{item.credit}} 学分</text>
+
+      <!-- 成绩列表 -->
+      <view wx:if="{{expanded[item.semester]}}" class="score-list">
+        <view wx:for="{{item.scores}}" wx:key="id" class="score-card">
+          <view class="score-left">
+            <text class="score-name">{{item.course_name}}</text>
+          </view>
+          <view class="score-right">
+            <text class="score-value {{item.score >= 60 ? 'pass' : 'fail'}}">{{item.score}}</text>
+            <text class="score-credit">{{item.credit}} 学分</text>
+          </view>
+        </view>
       </view>
     </view>
   </view>

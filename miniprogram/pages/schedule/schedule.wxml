@@ -1,4 +1,11 @@
 <view class="container">
+  <!-- 连接状态 -->
+  <view wx:if="{{!connected}}" class="offline-tip">🔴 未连上服务器 · 显示缓存数据</view>
+  <view class="schedule-sub">
+    <text class="semester-label">{{semester}}</text>
+    <text class="week-range">1 - {{maxWeek}} 周</text>
+  </view>
+
   <!-- 周选择器 -->
   <view class="week-picker">
     <view class="arrow" bindtap="prevWeek">‹</view>

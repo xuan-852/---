@@ -161,8 +161,22 @@ function getMsUntil(hour, min) {
 }
 
 function getCurrentWeek() {
-  // TODO: 根据学期起始日期计算
-  // 暂时返回第 1 周
+  // 学期起始（与小程序 constants.js 保持一致）
+  const starts = [
+    { start: '2025-09-01', label: '2025-2026-1' },
+    { start: '2026-02-23', label: '2025-2026-2' },
+    { start: '2026-09-07', label: '2026-2027-1' }
+  ];
+  const now = new Date();
+  for (const s of starts) {
+    const start = new Date(s.start);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 20 * 7);
+    if (now >= start && now < end) {
+      const diff = now - start;
+      return Math.max(1, Math.ceil(diff / (7 * 24 * 60 * 60 * 1000)));
+    }
+  }
   return 1;
 }
 

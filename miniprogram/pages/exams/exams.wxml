@@ -1,12 +1,26 @@
 <view class="container">
+  <!-- 连接状态 -->
+  <view wx:if="{{!connected}}" class="offline-tip">🔴 未连上服务器 · 显示缓存数据</view>
+
   <view class="section">
     <text class="section-title">📝 考试安排</text>
     <view wx:if="{{exams.length === 0}}" class="empty">
       <text>暂无考试安排~</text>
     </view>
     <view wx:for="{{exams}}" wx:key="id" class="exam-card">
-      <text class="exam-title">{{item.title}}</text>
-      <text class="exam-body">{{item.body}}</text>
+      <text class="exam-title">{{item.course_name}}</text>
+      <view class="exam-info">
+        <text class="exam-label">📅 考试时间</text>
+        <text class="exam-value">{{item.exam_date}} {{item.start_time}} ~ {{item.end_time}}</text>
+      </view>
+      <view class="exam-info">
+        <text class="exam-label">📍 考场</text>
+        <text class="exam-value">{{item.location}}</text>
+      </view>
+      <view class="exam-info">
+        <text class="exam-label">💺 座位号</text>
+        <text class="exam-value">{{item.seat_no}}</text>
+      </view>
     </view>
   </view>
 </view>

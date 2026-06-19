@@ -1,0 +1,117 @@
+.container {
+  min-height: 100vh;
+  background: #0f0f23;
+  color: #e0e0e0;
+  padding: 30rpx;
+}
+
+.offline-banner {
+  background: rgba(255, 138, 101, 0.15);
+  color: #ff8a65;
+  padding: 14rpx 20rpx;
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  text-align: center;
+  margin-bottom: 20rpx;
+}
+
+.card {
+  background: #1a1a3e;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin-bottom: 24rpx;
+}
+
+.card-header {
+  margin-bottom: 20rpx;
+}
+
+.card-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #fff;
+}
+
+/* 状态 */
+.status-badge {
+  padding: 20rpx;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  text-align: center;
+}
+.status-badge.bound {
+  background: rgba(76, 175, 80, 0.15);
+  color: #81c784;
+}
+.status-badge.unbound {
+  background: rgba(255, 152, 0, 0.15);
+  color: #ffb74d;
+}
+.loading-row {
+  text-align: center;
+  color: #888;
+  padding: 20rpx;
+}
+
+/* 表单 */
+.form { display: flex; flex-direction: column; gap: 20rpx; }
+.input {
+  background: #0f0f23;
+  border: 2rpx solid #2a2a4e;
+  border-radius: 12rpx;
+  padding: 24rpx 20rpx;
+  color: #e0e0e0;
+  font-size: 28rpx;
+}
+.form-options { margin: 10rpx 0; }
+.checkbox-label {
+  font-size: 26rpx;
+  color: #888;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+/* 按钮 */
+.btn-primary {
+  background: linear-gradient(135deg, #7c4dff, #b388ff);
+  color: #fff;
+  border: none;
+  border-radius: 12rpx;
+  padding: 24rpx;
+  font-size: 30rpx;
+  font-weight: bold;
+  margin-top: 10rpx;
+}
+.btn-primary[disabled] {
+  background: #333;
+  color: #666;
+}
+
+.btn-secondary {
+  background: #2a2a4e;
+  color: #e0e0e0;
+  border: none;
+  border-radius: 12rpx;
+  padding: 24rpx;
+  font-size: 28rpx;
+}
+.btn-secondary[disabled] {
+  background: #222;
+  color: #555;
+}
+
+/* 提示 */
+.tip {
+  font-size: 24rpx;
+  color: #666;
+  margin-top: 16rpx;
+  line-height: 1.6;
+}
+
+/* 关于 */
+.about-text {
+  font-size: 26rpx;
+  color: #888;
+  line-height: 1.8;
+}

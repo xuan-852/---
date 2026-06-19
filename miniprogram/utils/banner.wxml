@@ -1,0 +1,10 @@
+<!-- 连接状态横幅 -->
+<!-- 用法: <include src="../../utils/banner.wxml" /> -->
+<template name="connBanner">
+  <view wx:if="{{!connected && hasCache}}" class="offline-banner">
+    <text>⚠️ 未连上服务器 · 显示的是缓存数据</text>
+  </view>
+  <view wx:elif="{{!connected && !hasCache}}" class="offline-banner error">
+    <text>⛔ 未连上服务器 · 暂无数据</text>
+  </view>
+</template>

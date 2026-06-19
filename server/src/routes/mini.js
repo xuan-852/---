@@ -51,6 +51,13 @@ function auth(req, res, next) {
   next();
 }
 
+// ========== 通用 ==========
+
+// 小程序端健康检查（短平快，用于判断连接状态）
+router.get('/ping', (req, res) => {
+  res.json({ status: 'ok', time: Date.now() });
+});
+
 // ========== 用户/登录相关 ==========
 
 // 绑定教务账号

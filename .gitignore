@@ -1,8 +1,14 @@
 server/node_modules/
 server/data/
 server/.env
+server/nssm.exe
+server/.bkjw-profile/
+.bkjw-profile/
 miniprogram/node_modules/
 miniprogram/dist/
 *.apk
 *.APK
 .DS_Store
+apk_extracted/
+apk_extracted.zip
+server/src/debug_*.js

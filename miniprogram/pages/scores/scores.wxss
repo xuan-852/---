@@ -5,6 +5,16 @@
   padding: 20rpx 30rpx;
 }
 
+.offline-tip {
+  background: rgba(255, 138, 101, 0.15);
+  color: #ff8a65;
+  padding: 12rpx 20rpx;
+  border-radius: 8rpx;
+  font-size: 24rpx;
+  text-align: center;
+  margin-bottom: 16rpx;
+}
+
 .gpa-card {
   background: linear-gradient(135deg, #7c4dff, #448aff);
   border-radius: 20rpx;
@@ -27,40 +37,80 @@
   margin-top: 10rpx;
 }
 
-.section-title {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #fff;
-  margin-bottom: 20rpx;
+.gpa-sub {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.7);
   display: block;
+  margin-top: 8rpx;
 }
 
-.score-card {
-  background: #1a1a3e;
+/* 学期组 */
+.semester-group {
+  margin-bottom: 16rpx;
+}
+
+.semester-header {
+  background: #1e1e42;
   border-radius: 14rpx;
   padding: 24rpx;
-  margin-bottom: 14rpx;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  cursor: pointer;
 }
 
-.score-name {
+.semester-left {
+  flex: 1;
+}
+
+.semester-name {
   font-size: 30rpx;
   color: #fff;
   font-weight: bold;
   display: block;
 }
 
-.score-semester {
+.semester-meta {
   font-size: 22rpx;
   color: #888;
   display: block;
-  margin-top: 6rpx;
+  margin-top: 4rpx;
+}
+
+.semester-arrow {
+  font-size: 24rpx;
+  color: #666;
+  transition: transform 0.2s;
+}
+
+.semester-arrow.active {
+  transform: rotate(90deg);
+  color: #7c4dff;
+}
+
+/* 成绩列表 */
+.score-list {
+  padding: 8rpx 0 0 0;
+}
+
+.score-card {
+  background: #1a1a3e;
+  border-radius: 10rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 6rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.score-name {
+  font-size: 28rpx;
+  color: #e0e0e0;
+  display: block;
 }
 
 .score-value {
-  font-size: 40rpx;
+  font-size: 36rpx;
   font-weight: bold;
 }
 

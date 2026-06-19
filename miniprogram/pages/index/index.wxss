@@ -5,43 +5,127 @@
   padding: 20rpx 30rpx;
 }
 
+/* 加载 */
+.loading-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15, 15, 35, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+.loading-spinner {
+  width: 60rpx; height: 60rpx;
+  border: 6rpx solid #2a2a4e;
+  border-top-color: #7c4dff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { margin-top: 20rpx; color: #888; font-size: 28rpx; }
+
+/* 头部 */
 .header {
-  text-align: center;
-  padding: 40rpx 0;
+  padding: 30rpx 0;
 }
-
-.date {
-  font-size: 36rpx;
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.date { font-size: 32rpx; color: #fff; font-weight: bold; }
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.header-icon { font-size: 36rpx; }
+.week-badge {
+  font-size: 24rpx;
   color: #7c4dff;
-  font-weight: bold;
+  background: rgba(124, 77, 255, 0.15);
+  padding: 6rpx 20rpx;
+  border-radius: 20rpx;
 }
-
-.week {
-  display: block;
+.header-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8rpx;
+}
+.status-text { font-size: 24rpx; }
+.status-text.online { color: #81c784; }
+.status-text.offline { color: #ff8a65; }
+.semester-label { font-size: 24rpx; color: #666; margin-top: 4rpx; display: block; }
+.refresh-btn {
+  background: #1a1a3e;
+  border: none;
+  color: #7c4dff;
   font-size: 28rpx;
-  color: #888;
-  margin-top: 10rpx;
+  padding: 6rpx 20rpx;
+  border-radius: 8rpx;
+  line-height: 1.8;
 }
 
-.section {
-  margin: 30rpx 0;
-}
-
-.section-title {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #fff;
+/* 错误 */
+.error-banner {
+  background: rgba(255, 68, 68, 0.15);
+  color: #ff6b6b;
+  padding: 16rpx 24rpx;
+  border-radius: 12rpx;
+  font-size: 26rpx;
   margin-bottom: 20rpx;
+}
+
+/* 数据概览 */
+.summary-section {
+  display: flex;
+  gap: 20rpx;
+  margin: 20rpx 0 30rpx;
+}
+.summary-card {
+  flex: 1;
+  background: linear-gradient(135deg, #1a1a3e, #2a1a4e);
+  border-radius: 16rpx;
+  padding: 24rpx 16rpx;
+  text-align: center;
+}
+.summary-num {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #7c4dff;
   display: block;
 }
-
-.empty {
-  text-align: center;
-  padding: 60rpx;
-  color: #666;
-  font-size: 32rpx;
+.summary-label {
+  font-size: 22rpx;
+  color: #888;
+  display: block;
+  margin-top: 8rpx;
 }
 
+/* 区域 */
+.section {
+  margin: 20rpx 0;
+}
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+.section-title { font-size: 30rpx; font-weight: bold; color: #fff; }
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 60rpx 0;
+}
+.empty-icon { font-size: 60rpx; display: block; }
+.empty-text { color: #666; font-size: 28rpx; margin-top: 16rpx; display: block; }
+
+/* 课程卡片 */
 .course-card {
   background: linear-gradient(135deg, #1a1a3e, #2a1a4e);
   border-radius: 16rpx;
@@ -51,48 +135,25 @@
   align-items: center;
   border-left: 6rpx solid #7c4dff;
 }
+.course-time { font-size: 24rpx; color: #7c4dff; min-width: 140rpx; }
+.course-info { flex: 1; margin: 0 20rpx; }
+.course-name { font-size: 30rpx; color: #fff; font-weight: bold; display: block; }
+.course-location { font-size: 24rpx; color: #888; display: block; margin-top: 6rpx; }
+.course-slot { font-size: 22rpx; color: #666; }
 
-.course-time {
-  font-size: 24rpx;
-  color: #7c4dff;
-  min-width: 140rpx;
-}
-
-.course-info {
-  flex: 1;
-  margin: 0 20rpx;
-}
-
-.course-name {
-  font-size: 30rpx;
-  color: #fff;
-  font-weight: bold;
-  display: block;
-}
-
-.course-location {
-  font-size: 24rpx;
-  color: #888;
-  display: block;
-  margin-top: 6rpx;
-}
-
-.course-slot {
-  font-size: 22rpx;
-  color: #666;
-}
-
+/* 快捷入口 */
 .quick-actions {
   display: flex;
-  justify-content: space-around;
-  margin-top: 40rpx;
-  padding: 20rpx 0;
+  gap: 16rpx;
+  margin-top: 30rpx;
+  padding-bottom: 40rpx;
 }
-
 .action-btn {
+  flex: 1;
   background: #1a1a3e;
-  padding: 20rpx 30rpx;
+  padding: 20rpx 0;
   border-radius: 12rpx;
   color: #e0e0e0;
   font-size: 26rpx;
+  text-align: center;
 }

@@ -4,7 +4,8 @@
     "pages/schedule/schedule",
     "pages/scores/scores",
     "pages/exams/exams",
-    "pages/reminders/reminders"
+    "pages/reminders/reminders",
+    "pages/settings/settings"
   ],
   "window": {
     "navigationBarTitleText": "南理工课表助手",

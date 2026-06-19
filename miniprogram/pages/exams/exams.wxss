@@ -5,6 +5,16 @@
   padding: 20rpx 30rpx;
 }
 
+.offline-tip {
+  background: rgba(255, 138, 101, 0.15);
+  color: #ff8a65;
+  padding: 12rpx 20rpx;
+  border-radius: 8rpx;
+  font-size: 24rpx;
+  text-align: center;
+  margin-bottom: 16rpx;
+}
+
 .section-title {
   font-size: 32rpx;
   font-weight: bold;
@@ -33,11 +43,23 @@
   color: #ff6b6b;
   font-weight: bold;
   display: block;
-  margin-bottom: 10rpx;
+  margin-bottom: 16rpx;
 }
 
-.exam-body {
+.exam-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.exam-label {
+  font-size: 24rpx;
+  color: #888;
+  width: 140rpx;
+  flex-shrink: 0;
+}
+
+.exam-value {
   font-size: 26rpx;
-  color: #ccc;
-  display: block;
+  color: #e0e0e0;
 }

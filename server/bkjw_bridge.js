@@ -90,6 +90,17 @@ app.get('/exams', checkAuth, (req, res) => {
   res.json({ ok: true, data: cachedData.exams });
 });
 
+app.post('/eval', checkAuth, async (req, res) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ error: '缺少 code' });
+  try {
+    const result = await page.evaluate(code);
+    res.json({ ok: true, result });
+  } catch (e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
 app.post('/goto', checkAuth, async (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: '缺少 url' });
@@ -197,11 +208,31 @@ async function refreshData() {
 
 async function fetchExams() {
   console.log('[bridge]   📝 抓取考试安排...');
-  await page.goto('http://bkjw.njust.edu.cn/njlgdx/kscj/ksap_list', {
+  
+  // Step 1: Navigate to the query page first
+  await page.goto('http://bkjw.njust.edu.cn/njlgdx/xsks/xsksap_query?Ves632DSdyV=NEW_XSD_KSBM', {
     waitUntil: 'domcontentloaded', timeout: 15000
   });
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(2000);
+  
+  // Step 2: Click the query button (default semester is already current one)
+  const btnExists = await page.evaluate(() => {
+    const btn = document.querySelector('#btn_query');
+    if (btn) { btn.click(); return true; }
+    return false;
+  });
+  
+  if (!btnExists) {
+    console.log('[bridge]   ⚠️ 未找到查询按钮，尝试直接访问列表页...');
+    await page.goto('http://bkjw.njust.edu.cn/njlgdx/xsks/xsksap_list', {
+      waitUntil: 'domcontentloaded', timeout: 15000
+    });
+  }
+  
+  // Step 3: Wait for results page to load
+  await page.waitForTimeout(3000);
 
+  // Step 4: Extract exam data from the table
   return await page.evaluate(() => {
     const tables = document.querySelectorAll('table');
     let et = null;
@@ -216,14 +247,28 @@ async function fetchExams() {
     et.querySelectorAll('tr').forEach((row, i) => {
       if (i === 0) return;
       const c = row.querySelectorAll('td');
-      if (c.length >= 6) {
+      // 列: 序号 | 考试场次 | 课程编号 | 课程名称 | 考试时间 | 考场 | 座位号
+      if (c.length >= 7) {
+        const timeStr = c[4]?.innerText?.trim() || '';
+        // 解析 "2026-06-22 13:30~15:30"
+        let examDate = '', startTime = '', endTime = '';
+        const timeMatch = timeStr.match(/(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})~(\d{2}:\d{2})/);
+        if (timeMatch) {
+          examDate = timeMatch[1];
+          startTime = timeMatch[2];
+          endTime = timeMatch[3];
+        } else {
+          examDate = timeStr; // fallback: whole string as date
+        }
         data.push({
-          courseName: c[0]?.innerText?.trim() || '',
-          examDate: c[1]?.innerText?.trim() || '',
-          startTime: c[2]?.innerText?.trim() || '',
-          endTime: c[3]?.innerText?.trim() || '',
-          location: c[4]?.innerText?.trim() || '',
-          seatNo: c[5]?.innerText?.trim() || '',
+          courseName: c[3]?.innerText?.trim() || '',
+          examDate: examDate,
+          startTime: startTime,
+          endTime: endTime,
+          location: c[5]?.innerText?.trim() || '',
+          seatNo: c[6]?.innerText?.trim() || '',
+          examType: c[1]?.innerText?.trim() || '',  // 考试场次
+          semester: '2025-2026-2',
         });
       }
     });
