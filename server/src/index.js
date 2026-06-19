@@ -1,6 +1,7 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { initDB } = require('./db/database');
 
 const petRoutes = require('./routes/pet');
@@ -19,6 +20,11 @@ app.use('/api', miniRoutes);
 // 健康检查
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
+});
+
+// 网页仪表盘
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dashboard.html'));
 });
 
 // 异步启动

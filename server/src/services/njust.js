@@ -277,6 +277,82 @@ async function fetchScores(cookie) {
 }
 
 /**
+ * 抓取考试安排
+ */
+async function fetchExams(cookie) {
+  const examRes = await axios.get(`${JWXT_URL}/kscj/ksap_list`, {
+    httpsAgent,
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Cookie': cookie,
+      'Referer': `${JWXT_URL}/`
+    },
+    validateStatus: s => true
+  });
+
+  if (examRes.status === 404 || (examRes.data || '').includes('errorTips404')) {
+    throw new Error('教务系统暂不可达（404），请联系管理员确认 jwxt.njust.edu.cn 是否正常运行');
+  }
+
+  const exams = parseExamHTML(examRes.data);
+
+  // 存入数据库
+  saveExamsToDB(exams);
+
+  return exams;
+}
+
+/**
+ * 解析考试安排 HTML
+ */
+function parseExamHTML(html) {
+  const $ = cheerio.load(html);
+  const exams = [];
+
+  $('table').each((ti, tbl) => {
+    $(tbl).find('tr').each((ri, row) => {
+      if (ri === 0) return; // 跳过表头
+      const cols = $(row).find('td');
+      if (cols.length < 6) return;
+
+      exams.push({
+        courseName: $(cols[0]).text().trim(),
+        examDate: $(cols[1]).text().trim(),
+        startTime: $(cols[2]).text().trim(),
+        endTime: $(cols[3]).text().trim(),
+        location: $(cols[4]).text().trim(),
+        seatNo: $(cols[5]).text().trim(),
+      });
+    });
+  });
+
+  return exams;
+}
+
+/**
+ * 将考试安排存入数据库（全量替换）
+ */
+function saveExamsToDB(exams) {
+  const db = getDB();
+  db.run('DELETE FROM exams');
+  let count = 0;
+  for (const e of exams) {
+    try {
+      db.run(
+        `INSERT INTO exams (course_name, exam_date, start_time, end_time, location, seat_no, exam_type, semester)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [e.courseName || '', e.examDate || '', e.startTime || '', e.endTime || '',
+         e.location || '', e.seatNo || '', '期末', '']
+      );
+      count++;
+    } catch (err) {
+      // 跳过重复
+    }
+  }
+  console.log(`[NJUST] 已导入 ${count} 条考试安排`);
+}
+
+/**
  * 获取当前学期代号
  */
 async function getCurrentSemester(cookie) {
@@ -608,4 +684,4 @@ function saveScoresToDB(scores) {
   return newScores;
 }
 
-module.exports = { login, fetchSchedule, fetchScores, getCurrentSemester };
+module.exports = { login, fetchSchedule, fetchScores, fetchExams, getCurrentSemester };

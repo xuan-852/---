@@ -76,4 +76,14 @@ router.post('/reminder/sync', auth, (req, res) => {
   res.json({ status: 'ok', count: reminders.length });
 });
 
+// 桌面端查询考试安排
+router.get('/exams', auth, (req, res) => {
+  const db = getDB();
+  const rows = db.prepare(
+    'SELECT * FROM exams ORDER BY exam_date, start_time'
+  ).all();
+
+  res.json({ status: 'ok', data: { exams: rows } });
+});
+
 module.exports = router;

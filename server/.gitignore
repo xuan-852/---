@@ -1,19 +1,8 @@
-# === 隐私安全：调试探针（含硬编码凭据） ===
-login*.js
-login*.html
-test*.js
-*_debug*.js
-explore*.js
-analyze*.js
-check*.js
-fetch_*.js
-encrypt.js
-get_captcha.js
-ids_*.html
-cas_test*.html
-redirect_result.html
-captcha.png
+# === 隐私安全 ===
 tests/
+
+# === 浏览器桥接用户数据 ===
+.bkjw-profile/
 
 # === 环境变量与配置 ===
 .env

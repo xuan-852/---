@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>南理工课表助手</title>
+<style>
+  :root {
+    --bg: #14151b;
+    --panel: #1e2029;
+    --card: #282c3a;
+    --muted: #9ba2b5;
+    --text: #e8ecf2;
+    --accent: #7c4dff;
+    --accent-weak: #7c4dff22;
+    --good: #52d273;
+    --upnext: #ffc861;
+    --shadow: 0 14px 40px rgba(0,0,0,.55);
+    --radius-lg: 18px;
+    --radius-md: 12px;
+    --radius-sm: 8px;
+    --divider: #2a2f40;
+    /* Grid — 夜晚模式 */
+    --grid-wrapper-bg: #0c1020;
+    --grid-wrapper-border: #354060;
+    --grid-border: #4a5a7a;
+    --grid-border-inner: #3a4a6a;
+    --grid-border-bottom: #2a3a5a;
+    --grid-header-bg: #1e2a4a;
+    --grid-header-color: #e8ecf2;
+    --grid-header-sub: #8899bb;
+    --grid-header-today-bg: #3a2a6a;
+    --grid-header-today-color: #fff;
+    --grid-header-today-sub: #b088ff;
+    --grid-time-bg: #141a2e;
+    --grid-time-color: #9aa8c0;
+    --grid-time-name: #d0d8e8;
+    --grid-time-slots: #8899bb;
+    --grid-time-time: #5a6a88;
+    --grid-slot-bg: #080c18;
+    --grid-slot-hover: rgba(124,77,255,.06);
+    --grid-slot-has-course-bg: #0c1020;
+    --grid-slot-even: #0a1020;
+    --grid-time-even: #101628;
+    --scrollbar-track: #1a2030;
+    --scrollbar-thumb: #4a5680;
+    --empty-cell-pattern: rgba(255,255,255,.03);
+    --legend-bg: rgba(0,0,0,.15);
+    --card-border: rgba(0,0,0,.12);
+    --card-border-hover: rgba(0,0,0,.25);
+    --course-text: #1a1a2e;
+    --course-teacher-text: #3a3a5a;
+    --course-location-text: #5a5a7a;
+  }
+
+  /* ===== 白天模式 ===== */
+  .light-mode {
+    --bg: #f0f2f5;
+    --panel: #ffffff;
+    --card: #e8ecf1;
+    --muted: #666666;
+    --text: #1a1a2e;
+    --accent: #6d4aff;
+    --divider: #d0d5dd;
+    --shadow: 0 14px 40px rgba(0,0,0,.12);
+    --grid-wrapper-bg: #f8f9fc;
+    --grid-wrapper-border: #c8d0dd;
+    --grid-border: #c8d0dd;
+    --grid-border-inner: #d0d8e5;
+    --grid-border-bottom: #dde2ec;
+    --grid-header-bg: #e8ecf5;
+    --grid-header-color: #1a1a2e;
+    --grid-header-sub: #666666;
+    --grid-header-today-bg: #d4c5f5;
+    --grid-header-today-color: #1a1a2e;
+    --grid-header-today-sub: #555555;
+    --grid-time-bg: #f0f2f8;
+    --grid-time-color: #555555;
+    --grid-time-name: #222222;
+    --grid-time-slots: #666666;
+    --grid-time-time: #888888;
+    --grid-slot-bg: #ffffff;
+    --grid-slot-hover: rgba(109,74,255,.04);
+    --grid-slot-has-course-bg: #f8f9fc;
+    --grid-slot-even: #f4f5f9;
+    --grid-time-even: #eceef4;
+    --scrollbar-track: #e0e0e0;
+    --scrollbar-thumb: #b0b0b0;
+    --empty-cell-pattern: rgba(0,0,0,.04);
+    --legend-bg: rgba(0,0,0,.03);
+    --card-border: rgba(0,0,0,.1);
+    --card-border-hover: rgba(0,0,0,.2);
+    --course-text: #1a1a2e;
+    --course-teacher-text: #3a3a5a;
+    --course-location-text: #5a5a7a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    background-image: radial-gradient(ellipse 1400px 900px at 20% 0%, color-mix(in srgb, var(--text) 8%, var(--bg)) 0%, var(--bg) 65%);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ===== Header ===== */
+  .header {
+    background: var(--panel);
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--divider);
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .header-left h1 {
+    font-size: 22px;
+    background: linear-gradient(135deg, var(--accent), #b388ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .header-left p { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+
+  .btn {
+    background: var(--card);
+    border: 1px solid var(--divider);
+    color: var(--text);
+    padding: 8px 18px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all .2s ease;
+  }
+  .btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; transform: translateY(-1px); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #651fff; border-color: #651fff; }
+
+  .status-badge {
+    font-size: 12px;
+    color: var(--muted);
+    padding: 4px 12px;
+    background: var(--card);
+    border-radius: 20px;
+    border: 1px solid var(--divider);
+  }
+
+  /* ===== Navigation Tabs ===== */
+  .nav-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 12px 24px 0;
+    background: var(--panel);
+  }
+  .nav-tabs button {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all .2s;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  }
+  .nav-tabs button:hover { color: var(--text); background: rgba(255,255,255,.03); }
+  .nav-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); background: rgba(124,77,255,.08); }
+
+  .content { max-width: 1200px; margin: 0 auto; padding: 20px 24px; }
+  .tab { display: none; }
+  .tab.active { display: block; }
+
+  /* ===== Week Selector ===== */
+  .week-selector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding: 12px;
+    background: var(--panel);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--divider);
+  }
+  .week-selector button {
+    background: var(--card);
+    border: 1px solid var(--divider);
+    color: var(--text);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .week-selector button:hover { background: var(--accent); border-color: var(--accent); }
+  .week-selector .week-label { font-size: 16px; font-weight: 700; color: #fff; min-width: 100px; text-align: center; }
+  .week-selector .week-hint { font-size: 12px; color: var(--muted); }
+
+  /* ===== Schedule Grid — 清晰表格 ===== */
+  .schedule-wrapper {
+    background: var(--grid-wrapper-bg);
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--grid-wrapper-border);
+    overflow: hidden;
+    box-shadow: 0 14px 40px rgba(0,0,0,.6);
+  }
+  .schedule-scroll {
+    overflow-x: auto;
+    padding: 0;
+    -webkit-overflow-scrolling: touch;
+  }
+  .schedule-scroll::-webkit-scrollbar { height: 6px; }
+  .schedule-scroll::-webkit-scrollbar-track { background: var(--scrollbar-track); border-radius: 3px; }
+  .schedule-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+
+  .schedule-grid {
+    display: grid;
+    grid-template-columns: 80px repeat(7, minmax(120px, 1fr));
+    min-width: 920px;
+    border-top: 2px solid var(--grid-border);
+    border-left: 2px solid var(--grid-border);
+  }
+
+  /* ===== 表头 ===== */
+  .grid-header {
+    text-align: center;
+    padding: 14px 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--grid-header-color);
+    background: var(--grid-header-bg);
+    border-right: 2px solid var(--grid-border);
+    border-bottom: 2px solid var(--grid-border);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .grid-header .sub { font-size: 11px; font-weight: 400; color: var(--grid-header-sub); display: block; margin-top: 2px; }
+  .grid-header.today { color: var(--grid-header-today-color); background: var(--grid-header-today-bg); }
+  .grid-header.today .sub { color: var(--grid-header-today-sub); }
+
+  /* ===== 时间列 ===== */
+  .time-cell {
+    font-size: 12px;
+    color: var(--grid-time-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 4px;
+    background: var(--grid-time-bg);
+    border-right: 2px solid var(--grid-border);
+    border-bottom: 2px solid var(--grid-border-inner);
+    min-height: 95px;
+    font-weight: 500;
+  }
+  .time-cell .period-name { font-size: 14px; font-weight: 700; color: var(--grid-time-name); }
+  .time-cell .period-slots { font-size: 11px; color: var(--grid-time-slots); margin-top: 3px; }
+  .time-cell .period-time { font-size: 10px; color: var(--grid-time-time); margin-top: 2px; }
+
+  /* ===== 课格 ===== */
+  .grid-slot {
+    min-height: 95px;
+    padding: 4px;
+    transition: all .15s;
+    border-right: 2px solid var(--grid-border-inner);
+    border-bottom: 2px solid var(--grid-border-bottom);
+    position: relative;
+    background: var(--grid-slot-bg);
+  }
+  .grid-slot:hover { background: var(--grid-slot-hover); }
+
+  /* 有课格子 */
+  .grid-slot.has-course { background: var(--grid-slot-has-course-bg); }
+
+    /* ===== 当前时间指示线 ===== */
+  .grid-slot.current-period {
+    background: rgba(124,77,255,.18) !important;
+    box-shadow: inset 0 0 0 2px var(--accent);
+    position: relative;
+    z-index: 1;
+  }
+  .grid-slot.current-period.has-course .course-card {
+    box-shadow: 0 0 20px rgba(124,77,255,.3);
+  }
+  .time-cell.current-period {
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .time-cell.current-period .period-name::before {
+    content: '⏰ ';
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .5; transform: scale(1.15); }
+  }
+
+  /* ===== 合并课程块（同天同名连续节次 — grid-row span 方案） ===== */
+  .grid-slot.merge-placeholder {
+    height: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .grid-slot.has-course {
+    position: relative;
+  }
+  .course-card.merge-group {
+    position: absolute;
+    top: 4px; left: 4px; right: 4px; bottom: 4px;
+    min-height: 0 !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-radius: 8px;
+    padding: 14px 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.12);
+    border: 1.5px solid var(--card-border);
+  }
+  .course-card.merge-group:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,.2);
+  }
+
+  /* 空白格背景网格 */
+  .grid-slot.empty-cell {
+    background-image:
+      repeating-linear-gradient(0deg, var(--empty-cell-pattern) 1px, transparent 1px, transparent 20px),
+      repeating-linear-gradient(90deg, var(--empty-cell-pattern) 1px, transparent 1px, transparent 20px);
+  }
+
+  /* 隔行微色差 */
+  .grid-slot.row-even { background: var(--grid-slot-even); }
+  .time-cell.row-even { background: var(--grid-time-even); }
+
+  /* ===== 课程卡片 — 纯色铺满 ===== */
+  .course-card {
+    height: 100%;
+    min-height: 70px;
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    cursor: pointer;
+    transition: all .15s ease;
+    border: 1.5px solid var(--card-border);
+    position: relative;
+    overflow: hidden;
+  }
+  .course-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,.2);
+    border-color: var(--card-border-hover);
+  }
+  .course-card .name { font-size: 14px; font-weight: 700; color: var(--course-text); line-height: 1.3; letter-spacing: .3px; }
+  .course-card .teacher { font-size: 11px; color: var(--course-teacher-text); margin-top: 4px; }
+  .course-card .location { font-size: 11px; color: var(--course-location-text); margin-top: 2px; }
+
+  /* 浅色系纯色铺满格子 */
+  .course-color-0 { background: #d4c5f5; border-color: #b49ae8; }
+  .course-color-1 { background: #f5c5cd; border-color: #e89aaa; }
+  .course-color-2 { background: #c5e8d0; border-color: #9ad4aa; }
+  .course-color-3 { background: #f0e5c5; border-color: #e0d09a; }
+  .course-color-4 { background: #c5d8f0; border-color: #9ab8e0; }
+  .course-color-5 { background: #f0d5c5; border-color: #e0b09a; }
+  .course-color-6 { background: #e0c5e8; border-color: #c89ad4; }
+  .course-color-7 { background: #c5e0d0; border-color: #9ac8b0; }
+
+  .course-color-0 .name, .course-color-1 .name, .course-color-2 .name,
+  .course-color-3 .name, .course-color-4 .name, .course-color-5 .name,
+  .course-color-6 .name, .course-color-7 .name { color: var(--course-text); }
+  .course-color-0 .teacher, .course-color-1 .teacher, .course-color-2 .teacher,
+  .course-color-3 .teacher, .course-color-4 .teacher, .course-color-5 .teacher,
+  .course-color-6 .teacher, .course-color-7 .teacher { color: var(--course-teacher-text); }
+  .course-color-0 .location, .course-color-1 .location, .course-color-2 .location,
+  .course-color-3 .location, .course-color-4 .location, .course-color-5 .location,
+  .course-color-6 .location, .course-color-7 .location { color: var(--course-location-text); }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--divider);
+    background: var(--legend-bg);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+  /* ===== Scores Tab ===== */
+  .summary-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .summary-item {
+    background: var(--panel);
+    border: 1px solid var(--divider);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    text-align: center;
+  }
+  .summary-item .num {
+    font-size: 28px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), #b388ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .summary-item .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .score-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+  }
+  .score-card {
+    background: var(--panel);
+    border: 1px solid var(--divider);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    transition: all .2s;
+  }
+  .score-card:hover {
+    border-color: rgba(124,77,255,.3);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+  }
+  .score-card .name { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+  .score-card .detail-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 13px; }
+  .score-card .detail-label { color: var(--muted); }
+  .score-card .detail-value { color: var(--text); font-weight: 500; }
+  .score-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .score-badge.high { background: rgba(82,210,115,.18); color: var(--good); }
+  .score-badge.mid { background: rgba(255,200,97,.18); color: var(--upnext); }
+  .score-badge.low { background: rgba(255,79,113,.18); color: #ff4f71; }
+
+  .semester-divider {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--muted);
+    padding: 8px 0;
+    margin-top: 8px;
+    border-bottom: 1px dashed var(--divider);
+    grid-column: 1 / -1;
+  }
+
+  /* ===== Exams Tab ===== */
+  .exam-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+  }
+  .exam-card {
+    background: var(--panel);
+    border: 1px solid var(--divider);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    transition: all .2s;
+  }
+  .exam-card:hover {
+    border-color: rgba(255,200,97,.3);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+  }
+  .exam-card .course-name { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+  .exam-card .exam-date { font-size: 13px; color: var(--upnext); font-weight: 600; margin-bottom: 6px; }
+  .exam-card .exam-time { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .exam-card .exam-location { font-size: 13px; color: var(--muted); }
+  .exam-card .exam-seat { font-size: 13px; color: var(--muted); }
+  .exam-card .exam-detail-label { color: var(--muted); display: inline-block; width: 50px; }
+  .exam-card .exam-countdown {
+    display: inline-block;
+    font-size: 12px;
+    padding: 2px 10px;
+    border-radius: 12px;
+    background: rgba(255,200,97,.15);
+    color: var(--upnext);
+    margin-left: 8px;
+  }
+  .exam-card.overdue { opacity: 0.5; }
+  .exam-card.overdue .exam-date { color: var(--muted); }
+  .exam-card.overdue .exam-countdown { background: rgba(255,79,113,.15); color: #ff4f71; }
+
+  /* ===== Loading & Empty ===== */
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 60px 24px;
+    color: var(--muted);
+  }
+  .spinner {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 3px solid rgba(255,255,255,.1);
+    border-top-color: var(--accent);
+    animation: spin .9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty-state { text-align: center; padding: 60px 24px; color: var(--muted); }
+  .empty-state h3 { font-size: 20px; color: var(--text); margin-bottom: 8px; }
+  .error-state { text-align: center; padding: 40px 24px; color: #ff4f71; }
+
+  /* ===== Toast ===== */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--panel);
+    border: 1px solid var(--divider);
+    border-radius: var(--radius-md);
+    padding: 12px 24px;
+    font-size: 14px;
+    color: var(--text);
+    box-shadow: var(--shadow);
+    opacity: 0;
+    transition: all .3s ease;
+    z-index: 100;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 768px) {
+    .header { flex-direction: column; text-align: center; padding: 16px; }
+    .header-right { width: 100%; justify-content: center; flex-wrap: wrap; }
+    .content { padding: 12px; }
+    .schedule-grid { grid-template-columns: 60px repeat(7, minmax(90px, 1fr)); min-width: 700px; }
+    .grid-header { font-size: 12px; padding: 10px 4px; }
+    .time-cell { min-height: 75px; }
+    .time-cell .period-name { font-size: 12px; }
+    .grid-slot { min-height: 75px; }
+    .course-card { min-height: 60px; padding: 6px 8px; }
+    .course-card .name { font-size: 12px; }
+    .course-card .teacher { font-size: 10px; }
+    .course-card .location { font-size: 10px; }
+    .score-list { grid-template-columns: 1fr; }
+    .week-selector { padding: 8px; gap: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>📚 南理工课表助手</h1>
+    <p id="statusText">🎯 数据加载中...</p>
+  </div>
+  <div class="header-right">
+    <span class="status-badge" id="liveClock" style="font-family:monospace;font-size:14px;letter-spacing:1px">📅 --</span>
+    <span class="status-badge" id="semesterBadge">学期：--</span>
+    <button class="btn btn-primary" id="refreshBtn" onclick="refreshData()">
+      <span>🔄</span> 刷新数据
+    </button>
+  </div>
+</div>
+
+<div class="nav-tabs">
+  <button class="active" onclick="switchTab('schedule')">📅 课程表</button>
+  <button onclick="switchTab('scores')">📊 成绩单</button>
+  <button onclick="switchTab('exams')">📝 考试安排</button>
+</div>
+
+<div class="content">
+  <!-- 课程表 Tab -->
+  <div id="tab-schedule" class="tab active">
+    <div class="week-selector">
+      <button onclick="changeWeek(-1)" title="上一周">◀</button>
+      <div>
+        <div class="week-label" id="weekLabel">第 1 周</div>
+        <div class="week-hint" id="weekHint">全年 52 周 · 加载中...</div>
+      </div>
+      <button onclick="changeWeek(1)" title="下一周">▶</button>
+    <button class="btn" style="margin-left:8px" onclick="goToCurrentWeek()">📍 本周</button>
+      <button class="btn" id="themeToggle" onclick="toggleTheme()" style="margin-left:4px" title="切换白天/夜晚模式">🌙 夜间</button>
+    </div>
+    <div id="scheduleContent">
+      <div class="loading-state"><div class="spinner"></div><div>加载课表中...</div></div>
+    </div>
+  </div>
+
+  <!-- 成绩 Tab -->
+  <div id="tab-scores" class="tab">
+    <div class="summary-bar" id="scoreSummary"></div>
+    <div id="scoreContent">
+      <div class="loading-state"><div class="spinner"></div><div>加载成绩中...</div></div>
+    </div>
+  </div>
+
+  <!-- 考试安排 Tab -->
+  <div id="tab-exams" class="tab">
+    <div id="examContent">
+      <div class="loading-state"><div class="spinner"></div><div>加载考试安排中...</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const TOKEN = 'mini_secret_token_here';
+const API = 'http://localhost:3000/api';
+let currentWeek = 1;
+let courseColorMap = {};
+let colorIndex = 0;
+
+// ===== Toast =====
+function showToast(msg, duration) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), duration || 2500);
+}
+
+// ===== API =====
+async function api(path) {
+  const res = await fetch(API + path, {
+    headers: { 'Authorization': 'Bearer ' + TOKEN }
+  });
+  const data = await res.json();
+  if (data.status !== 'ok') throw new Error(data.message || '请求失败');
+  return data.data;
+}
+
+// ===== Tab =====
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+  // 延迟加载考试数据（只在首次切换时）
+  if (name === 'exams') loadExams();
+}
+
+// ===== Week =====
+// ===== Theme Toggle =====
+let isDarkMode = true;
+function toggleTheme() {
+  isDarkMode = !isDarkMode;
+  document.body.classList.toggle('light-mode', !isDarkMode);
+  const btn = document.getElementById('themeToggle');
+  btn.innerHTML = isDarkMode ? '🌙 夜间' : '☀️ 白天';
+  btn.title = isDarkMode ? '切换到白天模式' : '切换到夜间模式';
+  localStorage.setItem('darkMode', isDarkMode);
+}
+
+// 恢复保存的主题
+(function() {
+  const saved = localStorage.getItem('darkMode');
+  if (saved !== null) {
+    isDarkMode = saved === 'true';
+    document.body.classList.toggle('light-mode', !isDarkMode);
+    const btn = document.getElementById('themeToggle');
+    if (btn) {
+      btn.innerHTML = isDarkMode ? '🌙 夜间' : '☀️ 白天';
+      btn.title = isDarkMode ? '切换到白天模式' : '切换到夜间模式';
+    }
+  }
+})();
+
+function changeWeek(delta) {
+  currentWeek = Math.max(1, Math.min(52, currentWeek + delta));
+  document.getElementById('weekLabel').textContent = '第 ' + currentWeek + ' 周';
+  loadSchedule();
+}
+function goToCurrentWeek() {
+  const now = new Date();
+  const diff = Math.ceil((now - SEMESTER_START) / (7 * 86400000));
+  currentWeek = Math.max(1, Math.min(52, diff));
+  document.getElementById('weekLabel').textContent = '第 ' + currentWeek + ' 周';
+  loadSchedule();
+}
+
+// ===== Course Color =====
+function getCourseColor(name) {
+  if (!courseColorMap[name]) {
+    const colors = ['0','1','2','3','4','5','6','7'];
+    courseColorMap[name] = colors[colorIndex % colors.length];
+    colorIndex++;
+  }
+  return courseColorMap[name];
+}
+
+// ===== Schedule Grid =====
+const PERIODS = [
+  { name: '第一大节', slots: '1-3', time: '08:00-10:25', startSlot: 1 },
+  { name: '第二大节', slots: '4-5', time: '10:40-12:15', startSlot: 4 },
+  { name: '第三大节', slots: '6-7', time: '14:00-15:35', startSlot: 6 },
+  { name: '第四大节', slots: '8-9', time: '15:50-18:15', startSlot: 8 },
+  { name: '晚上', slots: '10-12', time: '19:00-21:25', startSlot: 10 },
+];
+const DAYS = ['周一','周二','周三','周四','周五','周六','周日'];
+
+const SEMESTER_START = new Date(2026, 1, 23); // 2026-02-23 开学（春季学期）
+
+function getWeekDates(week) {
+  const mon = new Date(SEMESTER_START);
+  mon.setDate(mon.getDate() + (week - 1) * 7);
+  const dates = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(mon);
+    d.setDate(d.getDate() + i);
+    dates.push(d);
+  }
+  return dates;
+}
+
+function getCurrentPeriodIndex() {
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes();
+  const t = h * 60 + m;
+  const ranges = [
+    [8*60, 10*60+25],   // 第一大节 08:00-10:25
+    [10*60+40, 12*60+15], // 第二大节 10:40-12:15
+    [14*60, 15*60+35],   // 第三大节 14:00-15:35
+    [15*60+50, 18*60+15], // 第四大节 15:50-18:15
+    [19*60, 21*60+25],   // 晚上 19:00-21:25
+  ];
+  for (let i = 0; i < ranges.length; i++) {
+    if (t >= ranges[i][0] && t <= ranges[i][1]) return i;
+  }
+  return -1;
+}
+
+function getTodayIndex() {
+  const d = new Date().getDay();
+  return d === 0 ? 6 : d - 1;
+}
+
+// ===== 实时时钟 =====
+function updateClock() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const dateStr = now.getFullYear() + '/' + pad(now.getMonth()+1) + '/' + pad(now.getDate())
+    + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+  const el = document.getElementById('liveClock');
+  if (el) el.textContent = '🕐 ' + dateStr;
+}
+let clockTimer;
+
+function startClock() {
+  updateClock();
+  clockTimer = setInterval(updateClock, 1000);
+}
+
+// 每分钟检查当前节次是否变化
+function startPeriodWatcher() {
+  let lastPeriod = getCurrentPeriodIndex();
+  setInterval(() => {
+    const p = getCurrentPeriodIndex();
+    if (p !== lastPeriod) {
+      lastPeriod = p;
+      loadSchedule(); // 刷新高亮
+    }
+  }, 30000); // 每30秒检查
+  // 每天午夜刷新周次
+  const now = new Date();
+  const msToMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) - now;
+  setTimeout(() => {
+    goToCurrentWeek();
+    setInterval(() => goToCurrentWeek(), 86400000);
+  }, msToMidnight + 5000);
+}
+
+async function loadSchedule() {
+  const container = document.getElementById('scheduleContent');
+  container.innerHTML = '<div class="loading-state"><div class="spinner"></div><div>加载课表中...</div></div>';
+  try {
+    const data = await api('/schedule?week=' + currentWeek);
+    const courses = data.courses || [];
+    // maxWeek 仅用于提示有数据的周数，总显示52周全年
+    const hasWeeks = data.maxWeek || 0;
+    document.getElementById('weekHint').textContent = '第1-'+ hasWeeks +'周有课 · 全年共52周';
+    const todayIdx = getTodayIndex();
+
+    let html = '<div class="schedule-wrapper"><div class="schedule-scroll"><div class="schedule-grid">';
+
+    // Header row — 带日期，显式 grid-row:1
+    const weekDates = getWeekDates(currentWeek);
+    html += '<div class="grid-header" style="grid-row:1;grid-column:1">时间</div>';
+    for (let d = 0; d < 7; d++) {
+      const isToday = d === todayIdx;
+      const dateStr = weekDates[d] ? (weekDates[d].getMonth()+1) + '/' + weekDates[d].getDate() : '';
+      html += '<div class="grid-header' + (isToday ? ' today' : '') + '" style="grid-row:1;grid-column:' + (d+2) + '">' + DAYS[d] + '<span class="sub">' + dateStr + (isToday ? ' 📌' : '') + '</span></div>';
+    }
+
+    // 判断当前显示的是否是真实当前周
+    const now = new Date();
+    const currentWeekNum = Math.ceil((now - SEMESTER_START) / (7 * 86400000));
+    const isCurrentWeek = currentWeek === currentWeekNum;
+
+    // 计算当前在第几时间段
+    const nowPeriodIdx = isCurrentWeek ? getCurrentPeriodIndex() : -1;
+
+    // 兼容旧数据 start_slot 映射 (旧→新: 1→1, 3→4, 5→6, 7→8)
+    const oldToNewSlot = { 1:1, 3:4, 5:6, 7:8 };
+    function coursePeriodIdx(c) {
+      return PERIODS.findIndex(p => p.startSlot === (oldToNewSlot[c.start_slot] || c.start_slot));
+    }
+
+    // 构建合并表
+    const mergeMap = {};
+    for (const c of courses) {
+      const cpi = coursePeriodIdx(c);
+      if (cpi < 0) continue;
+      const key = c.day + ':' + c.name;
+      if (!mergeMap[key]) mergeMap[key] = [];
+      if (!mergeMap[key].includes(cpi)) mergeMap[key].push(cpi);
+    }
+    // mergeRole: "day:pi" → 'start' | 'mid' | 'end'
+    const mergeRoles = {};
+    for (const [key, pis] of Object.entries(mergeMap)) {
+      pis.sort((a,b) => a-b);
+      if (pis.length < 2) continue;
+      let consec = true;
+      for (let i = 1; i < pis.length; i++) { if (pis[i] !== pis[i-1] + 1) { consec = false; break; } }
+      if (!consec) continue;
+      const day = parseInt(key.split(':')[0]);
+      for (let i = 0; i < pis.length; i++) {
+        const role = i === 0 ? 'start' : (i === pis.length - 1 ? 'end' : 'mid');
+        mergeRoles[day + ':' + pis[i]] = role;
+      }
+    }
+
+    // Period rows — 每格显式 grid-row/grid-column，避免 auto-placement 乱序
+    for (let pi = 0; pi < PERIODS.length; pi++) {
+      const period = PERIODS[pi];
+      const re = pi % 2 === 1 ? ' row-even' : '';
+      const isCurrentRow = pi === nowPeriodIdx;
+      // 时间列
+      const rowSpan = pi + 2; // header=row1, data starts at row2
+      html += '<div class="time-cell' + re + (isCurrentRow ? ' current-period' : '') + '" style="grid-row:' + rowSpan + ';grid-column:1">';
+      html += '<div class="period-name">' + period.name + '</div>';
+      html += '<div class="period-slots">' + period.slots + '节</div>';
+      html += '<div class="period-time">' + period.time + '</div>';
+      html += '</div>';
+
+      for (let d = 0; d < 7; d++) {
+        const col = d + 2; // col 1=时间, col 2-8=周一至周日
+        const cellKey = d + ':' + pi;
+        const mergeRole = mergeRoles[cellKey];
+        const isHighlight = isCurrentRow && d === todayIdx;
+
+        if (mergeRole === 'start') {
+          // 合并起始格 — grid-row span 跨多行
+          const span = (() => { for (let s = 1; pi + s < PERIODS.length && mergeRoles[d + ':' + (pi + s)]; s++) { if (mergeRoles[d + ':' + (pi + s)] === 'end') return s + 1; } return 1; })();
+          const matches = courses.filter(c => c.day === d && coursePeriodIdx(c) === pi);
+          if (matches.length > 0) {
+            const c = matches[0];
+            const color = getCourseColor(c.name);
+            let cardExtra = isHighlight ? 'border-color:var(--accent);border-width:2px' : '';
+            html += '<div class="grid-slot has-course' + re + (isHighlight ? ' current-period' : '') + '" style="grid-row:' + rowSpan + '/span ' + span + ';grid-column:' + col + '"><div class="course-card course-color-' + color + ' merge-group' + (cardExtra ? '" style="' + cardExtra : '') + '">';
+            html += '<div class="name">' + escHtml(c.name) + '</div>';
+            if (c.teacher) html += '<div class="teacher">👨‍🏫 ' + escHtml(c.teacher) + '</div>';
+            if (c.location) html += '<div class="location">📍 ' + escHtml(c.location) + '</div>';
+            html += '</div></div>';
+            continue;
+          }
+        }
+
+        if (mergeRole === 'mid' || mergeRole === 'end') {
+          // 合并中间/末尾格 — 占位，零高度
+          html += '<div class="grid-slot merge-placeholder" style="grid-row:' + rowSpan + ';grid-column:' + col + '"></div>';
+          continue;
+        }
+
+        // 普通格
+        const matches = courses.filter(c =>
+          c.day === d &&
+          (c.start_slot === period.startSlot || oldToNewSlot[c.start_slot] === period.startSlot)
+        );
+        if (matches.length > 0) {
+          const c = matches[0];
+          const color = getCourseColor(c.name);
+          html += '<div class="grid-slot has-course' + re + (isHighlight ? ' current-period' : '') + '" style="grid-row:' + rowSpan + ';grid-column:' + col + '">';
+          html += '<div class="course-card course-color-' + color + (isHighlight ? '" style="border-color:var(--accent);border-width:2px"' : '"') + '>';
+          html += '<div class="name">' + escHtml(c.name) + '</div>';
+          if (c.teacher) html += '<div class="teacher">👨‍🏫 ' + escHtml(c.teacher) + '</div>';
+          if (c.location) html += '<div class="location">📍 ' + escHtml(c.location) + '</div>';
+          html += '</div></div>';
+        } else {
+          html += '<div class="grid-slot empty-cell' + re + (isHighlight ? ' current-period' : '') + '" style="grid-row:' + rowSpan + ';grid-column:' + col + '"></div>';
+        }
+      }
+    }
+
+    html += '</div></div>'; // close schedule-grid + schedule-scroll
+
+    // Legend
+    html += '<div class="legend"><span style="font-size:12px;color:var(--muted);margin-right:8px">课程颜色：</span>';
+    const shown = new Set();
+    for (const c of courses) {
+      if (!shown.has(c.name)) {
+        shown.add(c.name);
+        const color = getCourseColor(c.name);
+        html += '<span class="legend-item"><span class="legend-dot" style="background:' + colorHex(color) + '"></span>' + escHtml(c.name) + '</span>';
+      }
+    }
+    if (Object.keys(courseColorMap).length === 0) html += '<span style="color:#666;font-size:12px">暂无课程</span>';
+    html += '</div></div>';
+
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = '<div class="error-state">❌ 加载失败：' + escHtml(e.message) + '</div>';
+  }
+}
+
+function colorHex(idx) {
+  const map = ['#b49ae8','#e89aaa','#9ad4aa','#e0d09a','#9ab8e0','#e0b09a','#c89ad4','#9ac8b0'];
+  return map[parseInt(idx)] || '#b49ae8';
+}
+
+function escHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// ===== Scores =====
+async function loadScores() {
+  const summary = document.getElementById('scoreSummary');
+  const list = document.getElementById('scoreContent');
+
+  try {
+    const data = await api('/scores');
+    const scores = data.scores || [];
+
+    // Summary
+    const total = scores.length;
+    let sum = 0, cnt = 0, credits = 0;
+    for (const s of scores) {
+      const score = parseFloat(s.score);
+      if (!isNaN(score)) { sum += score; cnt++; }
+      credits += parseFloat(s.credit) || 0;
+    }
+    const avg = cnt > 0 ? (sum / cnt).toFixed(1) : '--';
+
+    summary.innerHTML =
+      '<div class="summary-item"><div class="num">' + total + '</div><div class="label">📚 课程总数</div></div>' +
+      '<div class="summary-item"><div class="num">' + avg + '</div><div class="label">📈 平均分</div></div>' +
+      '<div class="summary-item"><div class="num">' + cnt + '</div><div class="label">✅ 有效成绩</div></div>' +
+      '<div class="summary-item"><div class="num">' + credits.toFixed(1) + '</div><div class="label">📖 总学分</div></div>';
+
+    // Group by semester
+    const grouped = {};
+    for (const s of scores) {
+      const sem = s.semester || '未知学期';
+      if (!grouped[sem]) grouped[sem] = [];
+      grouped[sem].push(s);
+    }
+
+    let html = '<div class="score-list">';
+    for (const [sem, items] of Object.entries(grouped)) {
+      html += '<div class="semester-divider">📁 ' + escHtml(sem) + '（' + items.length + '门）</div>';
+      for (const s of items) {
+        const showScore = s.score ? fmtScore(s.score) : '<span style="color:#666">暂无</span>';
+        html += '<div class="score-card">';
+        html += '<div class="name">' + escHtml(s.course_name || '?') + '</div>';
+        html += '<div class="detail-row"><span class="detail-label">成绩</span><span class="detail-value">' + showScore + '</span></div>';
+        html += '<div class="detail-row"><span class="detail-label">学分</span><span class="detail-value">' + (s.credit || 0) + '</span></div>';
+        html += '<div class="detail-row"><span class="detail-label">属性</span><span class="detail-value">' + escHtml(s.attribute || '--') + '</span></div>';
+        html += '<div class="detail-row"><span class="detail-label">性质</span><span class="detail-value">' + escHtml(s.nature || '--') + '</span></div>';
+        if (s.hours) html += '<div class="detail-row"><span class="detail-label">学时</span><span class="detail-value">' + s.hours + '</span></div>';
+        html += '</div>';
+      }
+    }
+    html += '</div>';
+    list.innerHTML = html;
+  } catch (e) {
+    summary.innerHTML = '';
+    list.innerHTML = '<div class="error-state">❌ 加载失败：' + escHtml(e.message) + '</div>';
+  }
+}
+
+// ===== Exams =====
+async function loadExams() {
+  const container = document.getElementById('examContent');
+  try {
+    const data = await api('/exams');
+    const exams = data.exams || [];
+
+    if (exams.length === 0) {
+      container.innerHTML = '<div class="empty-state"><h3>📝 暂无考试安排</h3><p>刷新数据后如果有考试信息会显示在这里</p></div>';
+      return;
+    }
+
+    // 按日期排序
+    exams.sort((a, b) => a.exam_date.localeCompare(b.exam_date) || a.start_time.localeCompare(b.start_time));
+
+    const now = new Date();
+    let html = '<div class="exam-list">';
+    for (const e of exams) {
+      const examDate = new Date(e.exam_date + 'T' + (e.start_time || '00:00'));
+      const daysLeft = Math.ceil((examDate - now) / 86400000);
+      const isOverdue = daysLeft < 0;
+      const countdownText = isOverdue ? '已过' + Math.abs(daysLeft) + '天' : (daysLeft === 0 ? '今天' : (daysLeft === 1 ? '明天' : daysLeft + '天后'));
+
+      html += '<div class="exam-card' + (isOverdue ? ' overdue' : '') + '">';
+      html += '<div class="course-name">' + escHtml(e.course_name || '?') + '</div>';
+      html += '<div class="exam-date">📅 ' + escHtml(e.exam_date || '--') + '<span class="exam-countdown">' + countdownText + '</span></div>';
+      if (e.start_time) html += '<div class="exam-time"><span class="exam-detail-label">⏰ 时间</span>' + escHtml(e.start_time) + ' - ' + escHtml(e.end_time || '') + '</div>';
+      if (e.location) html += '<div class="exam-location"><span class="exam-detail-label">📍 地点</span>' + escHtml(e.location) + '</div>';
+      if (e.seat_no) html += '<div class="exam-seat"><span class="exam-detail-label">💺 座位</span>' + escHtml(e.seat_no) + '</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = '<div class="error-state">❌ 加载失败：' + escHtml(e.message) + '</div>';
+  }
+}
+
+function fmtScore(score) {
+  const s = String(score).trim();
+  let cls = 'mid';
+  if (s.includes('优') || s.includes('A') || (parseFloat(s) >= 85)) cls = 'high';
+  else if (s.includes('不及格') || s.includes('F') || parseFloat(s) < 60) cls = 'low';
+  else if (parseFloat(s) < 70) cls = 'low';
+  return '<span class="score-badge ' + cls + '">' + escHtml(s) + '</span>';
+}
+
+// ===== Refresh =====
+async function refreshData() {
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ 刷新中...';
+  try {
+    const res = await fetch(API + '/refresh', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + TOKEN }
+    });
+    const data = await res.json();
+    if (data.status === 'ok') {
+      const time = new Date().toLocaleString();
+      document.getElementById('statusText').textContent = '✅ ' + time + ' 已更新（来源：' + (data.source || '?') + '）';
+      showToast('✅ 数据刷新成功！');
+      courseColorMap = {};
+      colorIndex = 0;
+      loadSchedule();
+      loadScores();
+    } else {
+      showToast('❌ 刷新失败：' + (data.message || '未知错误'), 3000);
+    }
+  } catch (e) {
+    showToast('❌ 刷新失败：' + e.message, 3000);
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<span>🔄</span> 刷新数据';
+}
+
+// ===== Init =====
+async function init() {
+  try {
+    const status = await api('/user/status');
+    if (status.user && status.user.semester) {
+      document.getElementById('semesterBadge').textContent = '📖 ' + status.user.semester;
+    }
+    if (status.user && status.user.last_login_at) {
+      document.getElementById('statusText').textContent = '🟢 上次更新：' + status.user.last_login_at;
+    }
+  } catch (e) { /* ignore */ }
+  startClock();
+  goToCurrentWeek();
+  loadScores();
+  startPeriodWatcher();
+}
+
+init();
+</script>
+</body>
+</html>

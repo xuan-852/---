@@ -23,15 +23,20 @@ CREATE TABLE IF NOT EXISTS courses (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
--- 成绩表
+-- 成绩表（兼容旧格式+桥接服务新字段）
 CREATE TABLE IF NOT EXISTS scores (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  course_name TEXT NOT NULL,
-  score REAL NOT NULL,
-  credit REAL DEFAULT 0,
   semester TEXT NOT NULL,
-  exam_type TEXT DEFAULT '期末',
-  created_at TEXT DEFAULT (datetime('now'))
+  course_code TEXT DEFAULT '',
+  course_name TEXT NOT NULL,
+  score TEXT DEFAULT '',              -- 成绩（数字或等级：优/良/中）
+  credit REAL DEFAULT 0,
+  hours INTEGER DEFAULT 0,           -- 总学时
+  exam_type TEXT DEFAULT '',
+  attribute TEXT DEFAULT '',         -- 课程属性（必修/任选/计划外）
+  nature TEXT DEFAULT '',            -- 课程性质（学科教育课/通识教育课）
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(semester, course_code, course_name)
 );
 
 -- 推送消息队列（桌面端轮询拉取）
@@ -54,4 +59,19 @@ CREATE TABLE IF NOT EXISTS reminders (
   source TEXT DEFAULT 'desktop',
   created_at TEXT DEFAULT (datetime('now')),
   synced_at TEXT DEFAULT (datetime('now'))
+);
+
+-- 考试安排表
+CREATE TABLE IF NOT EXISTS exams (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  course_name TEXT NOT NULL,
+  exam_date TEXT NOT NULL,       -- YYYY-MM-DD
+  start_time TEXT NOT NULL,      -- HH:mm
+  end_time TEXT NOT NULL,        -- HH:mm
+  location TEXT DEFAULT '',      -- 考场
+  seat_no TEXT DEFAULT '',       -- 座位号
+  exam_type TEXT DEFAULT '',     -- 考试类型（期末/补考等）
+  semester TEXT DEFAULT '',
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(course_name, exam_date, start_time)
 );

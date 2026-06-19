@@ -3,6 +3,26 @@ const router = express.Router();
 const { getDB } = require('../db/database');
 const njust = require('../services/njust');
 const crypto = require('crypto');
+const axios = require('axios');
+
+// ===== 桥接服务配置 =====
+const BRIDGE_URL = process.env.BRIDGE_URL || 'http://localhost:3456';
+const BRIDGE_TOKEN = process.env.BRIDGE_TOKEN || '';
+
+/**
+ * 调用桥接服务刷新数据
+ * 桥接服务维护一个持久 Edge 浏览器，绕过 bkjw 反爬
+ */
+async function refreshViaBridge() {
+  if (!BRIDGE_TOKEN) {
+    throw new Error('桥接服务未配置 (BRIDGE_TOKEN)');
+  }
+  const res = await axios.post(`${BRIDGE_URL}/refresh`, {}, {
+    headers: { 'x-bridge-token': BRIDGE_TOKEN },
+    timeout: 60000,
+  });
+  return res.data;
+}
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'njust-schedule-default-key-32chr!';
 
@@ -59,7 +79,70 @@ router.post('/user/bind', auth, (req, res) => {
 router.post('/refresh', auth, async (req, res) => {
   const db = getDB();
   try {
-    // 找第一个已绑定的用户
+    // 策略1: 优先使用桥接服务（持久化浏览器）
+    if (BRIDGE_TOKEN) {
+      try {
+        console.log('[mini] 通过桥接服务刷新数据...');
+        const bridgeResult = await refreshViaBridge();
+        if (bridgeResult.ok) {
+          // 桥接成功→从桥接服务拉取完整数据写入数据库
+          console.log('[mini] 桥接刷新成功，拉取数据写入本地DB...');
+          
+          let writeErrors = [];
+
+          // 拉取成绩（独立try，失败不影响整体）
+          try {
+            const scoresRes = await axios.get(`${BRIDGE_URL}/scores`, {
+              headers: { 'x-bridge-token': BRIDGE_TOKEN }, timeout: 10000
+            });
+            if (scoresRes.data?.ok && Array.isArray(scoresRes.data.data)) {
+              saveScoresToDB(db, scoresRes.data.data);
+            }
+          } catch (e) {
+            writeErrors.push('scores: ' + e.message);
+          }
+          
+          // 拉取课表（独立try）
+          try {
+            const schedRes = await axios.get(`${BRIDGE_URL}/schedule`, {
+              headers: { 'x-bridge-token': BRIDGE_TOKEN }, timeout: 10000
+            });
+            if (schedRes.data?.ok) {
+              saveScheduleToDB(db, schedRes.data.data);
+            }
+          } catch (e) {
+            writeErrors.push('schedule: ' + e.message);
+          }
+
+          // 拉取考试安排（独立try）
+          try {
+            const examsRes = await axios.get(`${BRIDGE_URL}/exams`, {
+              headers: { 'x-bridge-token': BRIDGE_TOKEN }, timeout: 10000
+            });
+            if (examsRes.data?.ok && Array.isArray(examsRes.data.data)) {
+              saveExamsToDB(db, examsRes.data.data);
+            }
+          } catch (e) {
+            writeErrors.push('exams: ' + e.message);
+          }
+
+          if (writeErrors.length > 0) {
+            console.log('[mini] ⚠️ 部分写入失败:', writeErrors.join('; '));
+          }
+
+          return res.json({
+            status: 'ok',
+            source: 'bridge',
+            data: bridgeResult
+          });
+        }
+      } catch (bridgeErr) {
+        console.log('[mini] 桥接服务不可用，回退到直接登录:', bridgeErr.message);
+        console.log('[mini] 详细:', JSON.stringify(bridgeErr, Object.getOwnPropertyNames(bridgeErr)));
+      }
+    }
+
+    // 策略2: 直接登录教务系统（旧方案）
     const user = db.prepare('SELECT * FROM users LIMIT 1').get();
     if (!user) {
       return res.status(400).json({ status: 'error', message: '请先在设置中绑定教务账号' });
@@ -68,16 +151,24 @@ router.post('/refresh', auth, async (req, res) => {
     const password = decrypt(user.password_enc);
     const result = await njust.login(user.username, password);
     
-    // 获取课表和成绩
+    // 获取课表和成绩和考试
     const courses = await njust.fetchSchedule(result.cookie);
     const scoreResult = await njust.fetchScores(result.cookie);
     const currentSem = await njust.getCurrentSemester(result.cookie);
+
+    // 尝试抓取考试（失败不影响主流程）
+    try {
+      await njust.fetchExams(result.cookie);
+    } catch (examErr) {
+      console.log('[mini] ⚠️ 考试安排抓取失败（可忽略）:', examErr.message);
+    }
 
     // 更新学期
     db.run('UPDATE users SET semester = ?, last_login_at = datetime(\'now\') WHERE id = ?', [currentSem, user.id]);
 
     res.json({
       status: 'ok',
+      source: 'direct',
       data: {
         courses_count: courses.length,
         scores_count: scoreResult.scores.length,
@@ -89,6 +180,118 @@ router.post('/refresh', auth, async (req, res) => {
     res.status(500).json({ status: 'error', message: e.message });
   }
 });
+
+/** 保存成绩到数据库（兼容桥接服务的数据格式） */
+function saveScoresToDB(db, scores) {
+  if (!scores.length) return;
+  // 表由 schema.sql 自动创建，这里直接用 db.run 插入（避免 prepare+free 循环问题）
+  let count = 0;
+  for (const s of scores) {
+    try {
+      db.run(
+        `INSERT OR REPLACE INTO scores (semester, course_code, course_name, score, credit, hours, exam_type, attribute, nature)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [s.semester || '', s.courseCode || '', s.courseName || '',
+         String(s.score || ''), s.credit || 0, s.hours || 0,
+         s.examType || '', s.attribute || '', s.nature || '']
+      );
+      count++;
+    } catch (e) {
+      console.log(`[mini] ⚠️ 跳过成绩写入失败:`, e.message);
+    }
+  }
+  console.log(`[mini] 💾 写入 ${count} 条成绩到数据库`);
+}
+
+/** 保存考试安排到数据库 */
+function saveExamsToDB(db, exams) {
+  if (!exams.length) return;
+  // 先清空旧考试（每次全量更新）
+  db.run('DELETE FROM exams');
+  let count = 0;
+  for (const e of exams) {
+    try {
+      db.run(
+        `INSERT INTO exams (course_name, exam_date, start_time, end_time, location, seat_no, exam_type, semester)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [e.courseName || '', e.examDate || '', e.startTime || '', e.endTime || '',
+         e.location || '', e.seatNo || '', e.examType || '期末', e.semester || '']
+      );
+      count++;
+    } catch (err) {
+      // 跳过重复项
+    }
+  }
+  console.log(`[mini] 💾 写入 ${count} 条考试安排到数据库`);
+}
+
+/** 保存课表到数据库（桥接格式 → courses 表） */
+function saveScheduleToDB(db, schedule) {
+  if (!schedule || typeof schedule !== 'object') return;
+  
+  // 先清空旧课表（每次全量更新）
+  db.run('DELETE FROM courses');
+
+  // 节次映射
+  const periodMap = {
+    '第一大节': { start: 1, end: 3 },
+    '第二大节': { start: 4, end: 5 },
+    '第三大节': { start: 6, end: 7 },
+    '第四大节': { start: 8, end: 9 },
+    '晚上': { start: 10, end: 12 },
+  };
+  const dayMap = {
+    '星期一': 0, '星期二': 1, '星期三': 2, '星期四': 3,
+    '星期五': 4, '星期六': 5, '星期日': 6,
+  };
+
+  /**
+   * 解析周次字符串 "1-16(周)" → [1,2,3,...,16]
+   * 支持: "1-16", "1,3,5", "1-8,10-16", "1-16(周)"
+   */
+  function parseWeeks(str) {
+    const cleaned = (str || '').replace(/\(周\)/g, '').trim();
+    if (!cleaned) return [];
+    const weeks = new Set();
+    const parts = cleaned.split(',');
+    for (const part of parts) {
+      const m = part.match(/(\d+)-(\d+)/);
+      if (m) {
+        for (let w = parseInt(m[1]); w <= parseInt(m[2]); w++) weeks.add(w);
+      } else {
+        const n = parseInt(part);
+        if (!isNaN(n)) weeks.add(n);
+      }
+    }
+    return [...weeks].sort((a, b) => a - b);
+  }
+
+  let count = 0;
+  for (const [key, entries] of Object.entries(schedule)) {
+    const [period, dayStr] = key.split('-');
+    const periodInfo = periodMap[period];
+    const day = dayMap[dayStr];
+    if (!periodInfo || day === undefined) continue;
+
+    for (const entry of entries) {
+      const weeks = parseWeeks(entry.weeks);
+      for (const week of weeks) {
+        try {
+          db.run(
+            `INSERT INTO courses (week, day, name, start_slot, end_slot, start_time, end_time, teacher, location)
+             VALUES (?, ?, ?, ?, ?, '', '', '', '')`,
+            [week, day, entry.course, periodInfo.start, periodInfo.end]
+          );
+          count++;
+        } catch (e) {
+          // 跳过重复项
+        }
+      }
+    }
+  }
+  
+  console.log(`[mini] 💾 写入 ${count} 条课表记录到数据库`);
+}
 
 // 获取登录状态
 router.get('/user/status', auth, (req, res) => {
@@ -107,7 +310,11 @@ router.get('/schedule', auth, (req, res) => {
     'SELECT * FROM courses WHERE week = ? ORDER BY day, start_slot'
   ).all(week);
 
-  res.json({ status: 'ok', data: { week, courses: rows } });
+  // 查询数据库中最大周数（学期总周数）
+  const maxWeekRow = db.prepare('SELECT MAX(week) as maxWeek FROM courses').get();
+  const maxWeek = maxWeekRow?.maxWeek || 20;
+
+  res.json({ status: 'ok', data: { week, maxWeek, courses: rows } });
 });
 
 // 获取所有成绩
@@ -124,17 +331,10 @@ router.get('/scores', auth, (req, res) => {
 router.get('/exams', auth, (req, res) => {
   const db = getDB();
   const rows = db.prepare(
-    'SELECT * FROM push_messages WHERE type = ? ORDER BY created_at DESC'
-  ).all('exam_reminder');
+    'SELECT * FROM exams ORDER BY exam_date ASC, start_time ASC'
+  ).all();
 
-  const exams = rows.map(r => ({
-    ...JSON.parse(r.payload || '{}'),
-    title: r.title,
-    body: r.body,
-    id: r.id
-  }));
-
-  res.json({ status: 'ok', data: { exams } });
+  res.json({ status: 'ok', data: { exams: rows } });
 });
 
 // 获取桌面端便签
