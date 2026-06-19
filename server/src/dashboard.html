@@ -552,6 +552,96 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+  /* ===== Settings Modal ===== */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.65);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-box {
+    background: var(--panel);
+    border: 1px solid var(--divider);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: var(--shadow);
+    animation: modalIn .25s ease;
+  }
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(.92) translateY(16px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .modal-box h2 { font-size: 20px; margin-bottom: 6px; }
+  .modal-box .sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+  .modal-box label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+  .modal-box input[type="text"],
+  .modal-box input[type="password"] {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--divider);
+    background: var(--card);
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    margin-bottom: 16px;
+    transition: border .2s;
+  }
+  .modal-box input:focus { border-color: var(--accent); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+  .modal-actions .btn { min-width: 80px; justify-content: center; }
+  .modal-error { color: #ff4f71; font-size: 13px; margin-bottom: 12px; display: none; }
+  .modal-error.show { display: block; }
+  .modal-success { color: var(--good); font-size: 13px; margin-bottom: 12px; display: none; }
+  .modal-success.show { display: block; }
+
+  /* ===== Profile Section ===== */
+  .profile-card {
+    background: var(--card);
+    border: 1px solid var(--divider);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .profile-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 13px;
+  }
+  .profile-row .label { color: var(--muted); }
+  .profile-row .value { color: var(--text); font-weight: 600; }
+  .profile-row .badge {
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 10px;
+    background: rgba(82,210,115,.15);
+    color: var(--good);
+  }
+  .profile-row .badge.unbound {
+    background: rgba(255,200,97,.15);
+    color: var(--upnext);
+  }
+  .unbind-btn {
+    font-size: 12px;
+    color: #ff4f71;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background .2s;
+  }
+  .unbind-btn:hover { background: rgba(255,79,113,.12); }
+
   /* ===== Responsive ===== */
   @media (max-width: 768px) {
     .header { flex-direction: column; text-align: center; padding: 16px; }
@@ -581,6 +671,8 @@
   <div class="header-right">
     <span class="status-badge" id="liveClock" style="font-family:monospace;font-size:14px;letter-spacing:1px">📅 --</span>
     <span class="status-badge" id="semesterBadge">学期：--</span>
+    <span class="status-badge" id="userBadge" style="display:none;background:var(--accent-weak);border:1px solid color-mix(in srgb, var(--accent) 30%, transparent);">👤 --</span>
+    <button class="btn" onclick="showSettings()" title="设置" style="font-size:18px;padding:6px 12px;">⚙️</button>
     <button class="btn btn-primary" id="refreshBtn" onclick="refreshData()">
       <span>🔄</span> 刷新数据
     </button>
@@ -628,6 +720,63 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- 设置弹窗 -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal-box">
+    <h2>⚙️ 设置</h2>
+    <div class="sub">管理你的教务账号</div>
+
+    <!-- 个人信息卡片 (已绑定) -->
+    <div class="profile-card" id="profileCard" style="display:none">
+      <div class="profile-row">
+        <span class="label">👤 当前用户</span>
+        <span class="value" id="profileUsername">--</span>
+      </div>
+      <div class="profile-row">
+        <span class="label">📖 当前学期</span>
+        <span class="value" id="profileSemester">--</span>
+      </div>
+      <div class="profile-row">
+        <span class="label">🕐 上次更新</span>
+        <span class="value" id="profileLastLogin">--</span>
+      </div>
+      <div class="profile-row">
+        <span class="label">状态</span>
+        <span class="badge" id="profileStatus">✅ 已绑定</span>
+      </div>
+      <div class="profile-row" style="justify-content:flex-end;padding-top:8px;border-top:1px solid var(--divider);margin-top:4px">
+        <button class="unbind-btn" id="unbindBtn" onclick="confirmUnbind()">🗑️ 解绑账号</button>
+      </div>
+      <div class="modal-actions" style="margin-top:4px">
+        <button class="btn" onclick="closeSettings()">关闭</button>
+      </div>
+    </div>
+
+    <!-- 未绑定区域 (解绑后出现) -->
+    <div id="bindArea" style="display:none">
+      <div class="profile-card" id="unboundHint">
+        <div class="profile-row">
+          <span class="label">👤 当前用户</span>
+          <span class="badge unbound">⚠️ 未绑定</span>
+        </div>
+        <div class="profile-row" style="font-size:12px;color:var(--muted);padding-top:4px">
+          绑定教务账号后可刷新课表、成绩和考试安排
+        </div>
+      </div>
+      <div class="modal-error" id="bindError"></div>
+      <div class="modal-success" id="bindSuccess">✅ 账号绑定成功！</div>
+      <label for="bindUsername">学号</label>
+      <input type="text" id="bindUsername" placeholder="请输入学号" autocomplete="off">
+      <label for="bindPassword">教务系统密码</label>
+      <input type="password" id="bindPassword" placeholder="请输入密码" autocomplete="off">
+      <div class="modal-actions">
+        <button class="btn" onclick="closeSettings()">取消</button>
+        <button class="btn btn-primary" onclick="submitBind()">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
 const TOKEN = 'mini_secret_token_here';
@@ -1043,6 +1192,113 @@ async function loadExams() {
   }
 }
 
+// ===== Settings / Profile / Bind =====
+
+/** 更新页面上的用户信息（header徽章 + 设置面板） */
+async function updateProfileUI() {
+  try {
+    const status = await api('/user/status');
+    const userBadge = document.getElementById('userBadge');
+    if (status.bound && status.user) {
+      userBadge.style.display = 'inline-flex';
+      userBadge.textContent = '👤 ' + status.user.username;
+    } else {
+      userBadge.style.display = 'none';
+    }
+    return status;
+  } catch (e) {
+    return { bound: false, user: null };
+  }
+}
+
+function showSettings() {
+  const errEl = document.getElementById('bindError');
+  const okEl = document.getElementById('bindSuccess');
+  errEl.classList.remove('show');
+  okEl.classList.remove('show');
+
+  // 加载个人信息
+  updateProfileUI().then(status => {
+    const profileCard = document.getElementById('profileCard');
+    const bindArea = document.getElementById('bindArea');
+    const bindUsername = document.getElementById('bindUsername');
+    const bindPassword = document.getElementById('bindPassword');
+
+    if (status.bound && status.user) {
+      profileCard.style.display = 'block';
+      bindArea.style.display = 'none';
+      document.getElementById('profileUsername').textContent = status.user.username;
+      document.getElementById('profileSemester').textContent = status.user.semester || '未设置';
+      document.getElementById('profileLastLogin').textContent = status.user.last_login_at || '从未';
+    } else {
+      profileCard.style.display = 'none';
+      bindArea.style.display = 'block';
+      bindUsername.value = '';
+      bindPassword.value = '';
+    }
+  });
+
+  document.getElementById('settingsModal').classList.add('active');
+}
+
+function closeSettings() {
+  document.getElementById('settingsModal').classList.remove('active');
+}
+
+function confirmUnbind() {
+  if (!confirm('确定要解绑教务账号吗？')) return;
+  const profileCard = document.getElementById('profileCard');
+  const bindArea = document.getElementById('bindArea');
+  profileCard.style.display = 'none';
+  bindArea.style.display = 'block';
+  document.getElementById('bindUsername').value = '';
+  document.getElementById('bindPassword').value = '';
+  document.getElementById('userBadge').style.display = 'none';
+  document.getElementById('bindPassword').focus();
+  showToast('账号已解绑，输入新学号和密码即可重新绑定');
+}
+
+async function submitBind() {
+  const username = document.getElementById('bindUsername').value.trim();
+  const password = document.getElementById('bindPassword').value;
+  const errEl = document.getElementById('bindError');
+  const okEl = document.getElementById('bindSuccess');
+  errEl.classList.remove('show');
+  okEl.classList.remove('show');
+
+  if (!username || !password) {
+    errEl.textContent = '学号和密码不能为空';
+    errEl.classList.add('show');
+    return;
+  }
+
+  try {
+    const res = await fetch(API + '/user/bind', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (data.status === 'ok') {
+      // 立即切换回个人信息视图
+      document.getElementById('profileCard').style.display = 'block';
+      document.getElementById('bindArea').style.display = 'none';
+      okEl.classList.add('show');
+      document.getElementById('bindPassword').value = '';
+      showToast('✅ 教务账号绑定成功！');
+      // 刷新 header 徽章
+      await updateProfileUI();
+      setTimeout(() => closeSettings(), 1200);
+    } else {
+      errEl.textContent = data.message || '绑定失败';
+      errEl.classList.add('show');
+    }
+  } catch (e) {
+    errEl.textContent = '网络错误：' + e.message;
+    errEl.classList.add('show');
+  }
+}
+
 function fmtScore(score) {
   const s = String(score).trim();
   let cls = 'mid';
@@ -1071,8 +1327,13 @@ async function refreshData() {
       colorIndex = 0;
       loadSchedule();
       loadScores();
+      updateProfileUI(); // 刷新后更新用户信息
     } else {
-      showToast('❌ 刷新失败：' + (data.message || '未知错误'), 3000);
+      showToast('❌ ' + (data.message || '未知错误'), 3000);
+      // 未绑定账号 -> 弹出设置窗口
+      if (data.message && data.message.includes('绑定教务账号')) {
+        setTimeout(() => showSettings(), 500);
+      }
     }
   } catch (e) {
     showToast('❌ 刷新失败：' + e.message, 3000);
@@ -1090,6 +1351,12 @@ async function init() {
     }
     if (status.user && status.user.last_login_at) {
       document.getElementById('statusText').textContent = '🟢 上次更新：' + status.user.last_login_at;
+    }
+    // 更新用户徽章
+    await updateProfileUI();
+    // 未绑定教务账号，弹出设置引导
+    if (!status.bound) {
+      setTimeout(() => showSettings(), 300);
     }
   } catch (e) { /* ignore */ }
   startClock();
