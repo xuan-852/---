@@ -21,6 +21,9 @@ App({
 
   /** 拉取 /api/config，用服务端下发的 serverUrl 覆盖本地硬编码 */
   _fetchConfig() {
+    // 开发者工具直连 localhost，不覆盖（否则会换成 ngrok 公网地址导致断连）
+    if (this.globalData.serverUrl.includes('localhost')) return;
+
     const bootstrapUrl = this.globalData.serverUrl;
     wx.request({
       url: bootstrapUrl + '/api/config',
