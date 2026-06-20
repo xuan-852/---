@@ -1,5 +1,6 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const express = require('express');
+const log = require('./utils/logger');
 const cors = require('cors');
 const path = require('path');
 const { initDB } = require('./db/database');
@@ -36,11 +37,11 @@ async function start() {
   startScheduler();
 
   app.listen(PORT, () => {
-    console.log(`[Server] 启动成功 → http://localhost:${PORT}`);
+    log.info(`[Server] 启动成功 → http://localhost:${PORT}`);
   });
 }
 
 start().catch(e => {
-  console.error('[Server] 启动失败:', e);
+  log.error('[Server] 启动失败:', e);
   process.exit(1);
 });

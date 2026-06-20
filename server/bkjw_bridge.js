@@ -29,6 +29,7 @@ const { chromium } = require('playwright');
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const log = require('./src/utils/logger');
 
 const PORT = 3456;
 const TOKEN_FILE = path.join(__dirname, 'bridge.token');
@@ -124,8 +125,8 @@ app.post('/refresh', checkAuth, async (req, res) => {
 // ===== 浏览器管理 =====
 
 async function startBrowser() {
-  console.log('[bridge] 🚀 启动 Edge 持久化浏览器...');
-  console.log(`[bridge]    用户数据: ${USER_DATA_DIR}`);
+  log.info('[bridge] 🚀 启动 Edge 持久化浏览器...');
+  log.info(`[bridge]    用户数据: ${USER_DATA_DIR}`);
 
   if (!fs.existsSync(USER_DATA_DIR)) {
     fs.mkdirSync(USER_DATA_DIR, { recursive: true });
@@ -150,23 +151,23 @@ async function startBrowser() {
 
     // 监听新标签页（eHall2 在新标签打开教务系统）
     context.on('page', async (newPage) => {
-      console.log(`[bridge] 📄 新标签页: ${newPage.url()}`);
+      log.info(`[bridge] 📄 新标签页: ${newPage.url()}`);
       newPage.on('load', () => {
         const url = newPage.url();
-        console.log(`[bridge] 📄 标签页加载: ${url}`);
+        log.info(`[bridge] 📄 标签页加载: ${url}`);
         if (url.includes('bkjw.njust.edu.cn')) {
-          console.log('[bridge] 🎯 切换到教务系统标签页');
+          log.info('[bridge] 🎯 切换到教务系统标签页');
           page = newPage;
         }
       });
     });
 
-    console.log('[bridge] ✅ 浏览器已就绪');
+    log.info('[bridge] ✅ 浏览器已就绪');
     return true;
   } catch (e) {
-    console.error('[bridge] ❌ 浏览器启动失败:', e.message);
-    console.log('[bridge] 提示: 如果报错 channel msedge not found，运行:');
-    console.log('[bridge]   npx playwright install msedge');
+    log.error('[bridge] ❌ 浏览器启动失败:', e.message);
+    log.warn('[bridge] 提示: 如果报错 channel msedge not found，运行:');
+    log.warn('[bridge]   npx playwright install msedge');
     return false;
   }
 }
@@ -188,26 +189,43 @@ async function checkLogin() {
 
 // ===== 数据抓取 =====
 
+let _refreshing = false;          // 刷新锁——防重叠
+const _REFRESH_COOLDOWN_MS = 10000; // 冷却期 10s
+
 async function refreshData() {
+  if (_refreshing) {
+    log.warn('[bridge] ⏳ 已有刷新进行中，跳过重叠请求');
+    return { scoresCount: cachedData.scores.length, scheduleCount: Object.keys(cachedData.schedule).length, examsCount: cachedData.exams.length, source: 'cached' };
+  }
+  _refreshing = true;
+
   if (!isLoggedIn) {
     const ok = await checkLogin();
-    if (!ok) throw new Error('❌ 未登录教务系统。请在 Edge 浏览器中完成登录:\n   http://ehall.njust.edu.cn');
+    if (!ok) {
+      _refreshing = false;
+      throw new Error('❌ 未登录教务系统。请在 Edge 浏览器中完成登录:\n   http://ehall.njust.edu.cn');
+    }
   }
 
-  console.log('[bridge] 🔄 刷新数据...');
+  log.info('[bridge] 🔄 刷新数据...');
 
-  const scores = await fetchScores();
-  const schedule = await fetchSchedule();
-  const exams = await fetchExams();
+  try {
+    const scores = await fetchScores();
+    const schedule = await fetchSchedule();
+    const exams = await fetchExams();
 
-  cachedData = { scores, schedule, exams, fetchedAt: new Date().toISOString() };
+    cachedData = { scores, schedule, exams, fetchedAt: new Date().toISOString() };
 
-  console.log(`[bridge] ✅ 完成: ${scores.length} 条成绩, ${Object.keys(schedule).length} 项课表, ${exams.length} 门考试`);
-  return { scoresCount: scores.length, scheduleCount: Object.keys(schedule).length, examsCount: exams.length };
+    log.info(`[bridge] ✅ 完成: ${scores.length} 条成绩, ${Object.keys(schedule).length} 项课表, ${exams.length} 门考试`);
+    return { scoresCount: scores.length, scheduleCount: Object.keys(schedule).length, examsCount: exams.length };
+  } finally {
+    // 冷却期——防止密集请求仍能交替越过锁
+    setTimeout(() => { _refreshing = false; }, _REFRESH_COOLDOWN_MS);
+  }
 }
 
 async function fetchExams() {
-  console.log('[bridge]   📝 抓取考试安排...');
+  log.info('[bridge]   📝 抓取考试安排...');
   
   // Step 1: Navigate to the query page first
   await page.goto('http://bkjw.njust.edu.cn/njlgdx/xsks/xsksap_query?Ves632DSdyV=NEW_XSD_KSBM', {
@@ -223,7 +241,7 @@ async function fetchExams() {
   });
   
   if (!btnExists) {
-    console.log('[bridge]   ⚠️ 未找到查询按钮，尝试直接访问列表页...');
+    log.warn('[bridge]   ⚠️ 未找到查询按钮，尝试直接访问列表页...');
     await page.goto('http://bkjw.njust.edu.cn/njlgdx/xsks/xsksap_list', {
       waitUntil: 'domcontentloaded', timeout: 15000
     });
@@ -277,7 +295,7 @@ async function fetchExams() {
 }
 
 async function fetchScores() {
-  console.log('[bridge]   📊 抓取成绩...');
+  log.info('[bridge]   📊 抓取成绩...');
   await page.goto('http://bkjw.njust.edu.cn/njlgdx/kscj/cjcx_list', {
     waitUntil: 'domcontentloaded', timeout: 15000
   });
@@ -312,7 +330,7 @@ async function fetchScores() {
 }
 
 async function fetchSchedule() {
-  console.log('[bridge]   📅 抓取课表...');
+  log.info('[bridge]   📅 抓取课表...');
   await page.goto('http://bkjw.njust.edu.cn/njlgdx/xskb/xskb_list.do', {
     waitUntil: 'domcontentloaded', timeout: 15000
   });
@@ -352,14 +370,11 @@ async function fetchSchedule() {
 // ===== 主循环 =====
 
 async function main() {
-  console.log('');
-  console.log('╔══════════════════════════════════════════════╗');
-  console.log('║   BKJW 持久化浏览器桥接服务 v1              ║');
-  console.log('╚══════════════════════════════════════════════╝');
-  console.log('');
-  console.log(`  Token: ${AUTH_TOKEN}`);
-  console.log(`  API:   http://localhost:${PORT}`);
-  console.log('');
+  log.info('╔══════════════════════════════════════════════╗');
+  log.info('║   BKJW 持久化浏览器桥接服务 v1              ║');
+  log.info('╚══════════════════════════════════════════════╝');
+  log.info(`  Token: ${AUTH_TOKEN}`);
+  log.info(`  API:   http://localhost:${PORT}`);
 
   app.listen(PORT);
 
@@ -368,16 +383,14 @@ async function main() {
 
   const loggedIn = await checkLogin();
   if (loggedIn) {
-    console.log('[bridge] ✅ 已登录，自动抓取数据...');
-    try { await refreshData(); } catch (e) { console.log('[bridge] ⚠️', e.message); }
+    log.info('[bridge] ✅ 已登录，自动抓取数据...');
+    try { await refreshData(); } catch (e) { log.warn('[bridge] ⚠️', e.message); }
   } else {
-    console.log('');
-    console.log('  ⚠️  请在打开的 Edge 窗口中完成登录:');
-    console.log('     1. 打开 http://ehall.njust.edu.cn');
-    console.log('     2. SSO 登录 → 点击教务系统（师生端）');
-    console.log('     3. 确保看到成绩页面');
-    console.log(`     4. curl -X POST http://localhost:${PORT}/refresh -H "x-bridge-token: ${AUTH_TOKEN}"`);
-    console.log('');
+    log.warn('  ⚠️  请在打开的 Edge 窗口中完成登录:');
+    log.warn('     1. 打开 http://ehall.njust.edu.cn');
+    log.warn('     2. SSO 登录 → 点击教务系统（师生端）');
+    log.warn('     3. 确保看到成绩页面');
+    log.warn(`     4. curl -X POST http://localhost:${PORT}/refresh -H "x-bridge-token: ${AUTH_TOKEN}"`);
   }
 
   // 心跳（每 10 分钟检查页面存活）
@@ -393,4 +406,4 @@ async function main() {
   }, 10 * 60 * 1000);
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+main().catch(e => { log.error(e); process.exit(1); });

@@ -4,6 +4,7 @@ const { getDB } = require('../db/database');
 const njust = require('../services/njust');
 const crypto = require('crypto');
 const axios = require('axios');
+const log = require('../utils/logger');
 
 // ===== 桥接服务配置 =====
 const BRIDGE_URL = process.env.BRIDGE_URL || 'http://localhost:3456';
@@ -53,6 +54,19 @@ function auth(req, res, next) {
 
 // ========== 通用 ==========
 
+// 客户端配置（动态下发，更换 ngrok 域名时只需改 .env）
+router.get('/config', (req, res) => {
+  res.json({
+    status: 'ok',
+    data: {
+      serverUrl: process.env.PUBLIC_URL || 'https://cross-churn-distance.ngrok-free.dev',
+      pingInterval: 5000,
+      probeCount: 10,
+      probeWindow: 5000,
+    }
+  });
+});
+
 // 小程序端健康检查（短平快，用于判断连接状态）
 router.get('/ping', (req, res) => {
   res.json({ status: 'ok', time: Date.now() });
@@ -82,18 +96,30 @@ router.post('/user/bind', auth, (req, res) => {
   }
 });
 
+// ===== 刷新防抖 =====
+let _lastRefreshAt = 0;
+const _REFRESH_DEBOUNCE_MS = 30000;
+
 // 手动刷新教务数据（课表+成绩）
 router.post('/refresh', auth, async (req, res) => {
+  // 服务端防抖——30s 内跳过重复刷新
+  const now = Date.now();
+  if (now - _lastRefreshAt < _REFRESH_DEBOUNCE_MS) {
+    log.info(`[mini] ⏳ 距离上次刷新不足 ${_REFRESH_DEBOUNCE_MS/1000}s，跳过`);
+    return res.json({ status: 'ok', source: 'debounced', message: '刷新太频繁，已跳过' });
+  }
+  _lastRefreshAt = now;
+
   const db = getDB();
   try {
     // 策略1: 优先使用桥接服务（持久化浏览器）
     if (BRIDGE_TOKEN) {
       try {
-        console.log('[mini] 通过桥接服务刷新数据...');
+        log.info('[mini] 通过桥接服务刷新数据...');
         const bridgeResult = await refreshViaBridge();
         if (bridgeResult.ok) {
           // 桥接成功→从桥接服务拉取完整数据写入数据库
-          console.log('[mini] 桥接刷新成功，拉取数据写入本地DB...');
+          log.info('[mini] 桥接刷新成功，拉取数据写入本地DB...');
           
           let writeErrors = [];
 
@@ -134,7 +160,7 @@ router.post('/refresh', auth, async (req, res) => {
           }
 
           if (writeErrors.length > 0) {
-            console.log('[mini] ⚠️ 部分写入失败:', writeErrors.join('; '));
+            log.warn('[mini] ⚠️ 部分写入失败:', writeErrors.join('; '));
           }
 
           return res.json({
@@ -144,8 +170,8 @@ router.post('/refresh', auth, async (req, res) => {
           });
         }
       } catch (bridgeErr) {
-        console.log('[mini] 桥接服务不可用，回退到直接登录:', bridgeErr.message);
-        console.log('[mini] 详细:', JSON.stringify(bridgeErr, Object.getOwnPropertyNames(bridgeErr)));
+        log.warn('[mini] 桥接服务不可用，回退到直接登录:', bridgeErr.message);
+        log.warn('[mini] 详细:', JSON.stringify(bridgeErr, Object.getOwnPropertyNames(bridgeErr)));
       }
     }
 
@@ -167,7 +193,7 @@ router.post('/refresh', auth, async (req, res) => {
     try {
       await njust.fetchExams(result.cookie);
     } catch (examErr) {
-      console.log('[mini] ⚠️ 考试安排抓取失败（可忽略）:', examErr.message);
+      log.warn('[mini] ⚠️ 考试安排抓取失败（可忽略）:', examErr.message);
     }
 
     // 更新学期
@@ -204,10 +230,10 @@ function saveScoresToDB(db, scores) {
       );
       count++;
     } catch (e) {
-      console.log(`[mini] ⚠️ 跳过成绩写入失败:`, e.message);
+      log.warn(`[mini] ⚠️ 跳过成绩写入失败:`, e.message);
     }
   }
-  console.log(`[mini] 💾 写入 ${count} 条成绩到数据库`);
+  log.info(`[mini] 💾 写入 ${count} 条成绩到数据库`);
 }
 
 /** 保存考试安排到数据库 */
@@ -229,7 +255,7 @@ function saveExamsToDB(db, exams) {
       // 跳过重复项
     }
   }
-  console.log(`[mini] 💾 写入 ${count} 条考试安排到数据库`);
+  log.info(`[mini] 💾 写入 ${count} 条考试安排到数据库`);
 }
 
 /** 保存课表到数据库（桥接格式 → courses 表） */
@@ -297,7 +323,7 @@ function saveScheduleToDB(db, schedule) {
     }
   }
   
-  console.log(`[mini] 💾 写入 ${count} 条课表记录到数据库`);
+  log.info(`[mini] 💾 写入 ${count} 条课表记录到数据库`);
 }
 
 // 获取登录状态

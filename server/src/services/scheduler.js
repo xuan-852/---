@@ -1,10 +1,8 @@
 const { getDB } = require('../db/database');
 const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
-const crypto = require('crypto');
+const log = require('../utils/logger');
 
-const BRIDGE_URL = process.env.BRIDGE_URL || 'http://localhost:3456';
-const BRIDGE_TOKEN = process.env.BRIDGE_TOKEN || '';
 const MINI_TOKEN = process.env.MINI_TOKEN || '';
 
 /**
@@ -14,7 +12,7 @@ const MINI_TOKEN = process.env.MINI_TOKEN || '';
  */
 
 function startScheduler() {
-  console.log('[Scheduler] 定时任务启动');
+  log.info('[Scheduler] 定时任务启动');
 
   // 每小时检查新成绩 + 考试安排
   scheduleScoreCheck();
@@ -26,88 +24,31 @@ function startScheduler() {
   scheduleExamCheck();
 }
 
-/** 每 60 分钟从桥接服务刷新成绩 */
+/** 每 60 分钟刷新数据——走 server 统一入口 /api/refresh 避免并发冲突 */
 function scheduleScoreCheck() {
   const check = async () => {
-    if (!BRIDGE_TOKEN || !MINI_TOKEN) {
-      console.log('[Scheduler] 桥接服务未配置，跳过自动刷新');
+    if (!MINI_TOKEN) {
+      log.warn('[Scheduler] MINI_TOKEN 未配置，跳过自动刷新');
       return;
     }
     try {
-      // 先刷新桥接缓存
-      await axios.post(`${BRIDGE_URL}/refresh`, {}, {
-        headers: { 'x-bridge-token': BRIDGE_TOKEN },
-        timeout: 30000,
+      // 调自己的 /api/refresh（经 mini.js 防抖 + bridge 锁双重保护）
+      await axios.post('http://localhost:3000/api/refresh', {}, {
+        headers: { 'Authorization': `Bearer ${MINI_TOKEN}` },
+        timeout: 90000,
       });
-      // 再拉取成绩写入 DB
-      const scoresRes = await axios.get(`${BRIDGE_URL}/scores`, {
-        headers: { 'x-bridge-token': BRIDGE_TOKEN },
-        timeout: 10000,
-      });
-      if (scoresRes.data?.ok && Array.isArray(scoresRes.data.data)) {
-        const db = getDB();
-        let count = 0;
-        for (const s of scoresRes.data.data) {
-          try {
-            db.run(
-              `INSERT OR REPLACE INTO scores (semester, course_code, course_name, score, credit, hours, exam_type, attribute, nature)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [s.semester || '', s.courseCode || '', s.courseName || '',
-               String(s.score || ''), s.credit || 0, s.hours || 0,
-               s.examType || '', s.attribute || '', s.nature || '']
-            );
-            count++;
-          } catch (e) { /* ignore duplicate */ }
-        }
-        if (count > 0) {
-          console.log(`[Scheduler] 🔄 自动刷新: ${count} 条成绩`);
-          // 写入推送消息通知桌面端
-          const id = uuidv4();
-          db.run(
-            `INSERT INTO push_messages (id, type, title, body) VALUES (?, 'score_update', '📊 成绩已更新', ?)`,
-            [id, `共 ${count} 条成绩已刷新`]
-          );
-        }
-      }
-
-      // 同步考试安排到数据库
-      try {
-        const examsRes = await axios.get(`${BRIDGE_URL}/exams`, {
-          headers: { 'x-bridge-token': BRIDGE_TOKEN },
-          timeout: 10000,
-        });
-        if (examsRes.data?.ok && Array.isArray(examsRes.data.data)) {
-          const db = getDB();
-          // 清空旧考试安排，全量更新
-          db.run('DELETE FROM exams');
-          let examCount = 0;
-          for (const e of examsRes.data.data) {
-            try {
-              db.run(
-                `INSERT INTO exams (course_name, exam_date, start_time, end_time, location, seat_no)
-                 VALUES (?, ?, ?, ?, ?, ?)`,
-                [e.courseName || '', e.examDate || '', e.startTime || '',
-                 e.endTime || '', e.location || '', e.seatNo || '']
-              );
-              examCount++;
-            } catch (ex) { /* ignore */ }
-          }
-          if (examCount > 0) {
-            console.log(`[Scheduler] 📝 已同步 ${examCount} 门考试安排`);
-          }
-        }
-      } catch (ex) {
-        // 桥接未就绪时不报错
-      }
+      log.info('[Scheduler] ✅ 定时刷新完成');
     } catch (e) {
-      // 桥接服务不可用是正常的（比如未登录），不打印错误日志
+      // 桥接未登录、刷新被跳过、网络超时——都是正常情况
+      const msg = e.response?.data?.message || e.message;
+      log.warn(`[Scheduler] ⏭️ 刷新跳过或失败: ${msg}`);
     }
   };
 
   // 首次 5 分钟后执行，之后每 60 分钟
   setTimeout(() => { check(); }, 5 * 60 * 1000);
   setInterval(check, 60 * 60 * 1000);
-  console.log('[Scheduler] 成绩自动刷新已启动（每 60 分钟）');
+  log.info('[Scheduler] 成绩自动刷新已启动（每 60 分钟）');
 }
 
 function scheduleDailyCheck() {
@@ -120,7 +61,7 @@ function scheduleDailyCheck() {
     setInterval(pushTodaySchedule, 24 * 60 * 60 * 1000);
   }, msUntil6am);
 
-  console.log(`[Scheduler] 下次课表推送: ${msUntil6am / 1000 / 60} 分钟后`);
+  log.info(`[Scheduler] 下次课表推送: ${msUntil6am / 1000 / 60} 分钟后`);
 }
 
 function pushTodaySchedule() {
@@ -146,9 +87,9 @@ function pushTodaySchedule() {
       [id, lines.join('\n')]
     );
 
-    console.log('[Scheduler] 已推送今日课表');
+    log.info('[Scheduler] 已推送今日课表');
   } catch (e) {
-    console.error('[Scheduler] 推送课表失败:', e.message);
+    log.error('[Scheduler] 推送课表失败:', e.message);
   }
 }
 
@@ -251,17 +192,17 @@ function scheduleExamCheck() {
           }
         }
 
-        console.log(`[Scheduler] 📝 已推送考试提醒: ${exam.course_name} (${exam.exam_date})`);
+        log.info(`[Scheduler] 📝 已推送考试提醒: ${exam.course_name} (${exam.exam_date})`);
       }
     } catch (e) {
-      console.error('[Scheduler] 考试提醒推送失败:', e.message);
+      log.error('[Scheduler] 考试提醒推送失败:', e.message);
     }
   };
 
   // 首次 5 分钟后检查，之后每 2 小时
   setTimeout(() => { check(); }, 5 * 60 * 1000);
   setInterval(check, 2 * 60 * 60 * 1000);
-  console.log('[Scheduler] 考试提醒已启动（每 2 小时）');
+  log.info('[Scheduler] 考试提醒已启动（每 2 小时）');
 }
 
 module.exports = { startScheduler };

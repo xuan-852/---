@@ -4,6 +4,7 @@ const https = require('https');
 const CryptoJS = require('crypto-js');
 const { getDB } = require('../db/database');
 const { v4: uuidv4 } = require('uuid');
+const log = require('../utils/logger');
 
 /**
  * 南理工教务系统对接
@@ -349,7 +350,7 @@ function saveExamsToDB(exams) {
       // 跳过重复
     }
   }
-  console.log(`[NJUST] 已导入 ${count} 条考试安排`);
+  log.info(`[NJUST] 已导入 ${count} 条考试安排`);
 }
 
 /**
@@ -645,7 +646,7 @@ function saveCoursesToDB(courses) {
     db.run(sql, [c.week, c.day, c.name, c.teacher, c.location, c.start_slot, c.end_slot, c.start_time, c.end_time]);
   }
 
-  console.log(`[NJUST] 已导入 ${courses.length} 条课程记录`);
+  log.info(`[NJUST] 已导入 ${courses.length} 条课程记录`);
 }
 
 /**
@@ -678,7 +679,7 @@ function saveScoresToDB(scores) {
   }
 
   if (newScores.length > 0) {
-    console.log(`[NJUST] 新成绩 ${newScores.length} 条，已推送通知`);
+    log.info(`[NJUST] 新成绩 ${newScores.length} 条，已推送通知`);
   }
 
   return newScores;

@@ -1,37 +1,109 @@
 const app = getApp();
 
-// ─── 连接状态管理（防抖动） ───
-let _failCount = 0;               // 连续失败次数
-const _FAIL_THRESHOLD = 2;        // 连续 N 次才标记离线
-let _heartbeatTimer = null;       // 定时器
-const _HEARTBEAT_MS = 25000;      // 25s 一次心跳
+// ─── 连接状态管理（滑动窗口 + 两阶段探测） ───
+//
+// 阶段 1 - 初始探测：模块加载时 5s 内快速发 10 次 ping
+//   ≥ 8 次成功 → 标记已连接；否则保持未连接
+// 阶段 2 - 稳态心跳：每 5s 一次 ping，滑动窗口保留最近 6 次结果
+//   已连接时：窗口内 < 5 次成功 → 断连
+//   未连接时：窗口内 ≥ 5 次成功 → 恢复
+//
+let _heartbeatTimer = null;
+let _initialized = false;             // 阶段 1 是否完成
 
-function _startHeartbeat() {
-  if (_heartbeatTimer) return;
-  _heartbeatTimer = setInterval(_doPing, _HEARTBEAT_MS);
+const _HEARTBEAT_MS = 5000;           // 稳态：5s 一次心跳
+const _WINDOW_SIZE = 6;               // 滑动窗口大小（覆盖 30s）
+const _CONNECTED_THRESHOLD = 5;       // 已连接：窗口 ≥5 次成功才维持
+const _DISCONNECTED_THRESHOLD = 5;    // 已断连：窗口 ≥5 次成功才恢复
+
+const _INIT_PROBES = 10;              // 初始探测：10 次
+const _INIT_WINDOW_MS = 5000;         // 初始窗口：5s
+const _INIT_THRESHOLD = 8;            // 初始：≥8 次成功标记已连接
+
+/** 环形缓冲区，保留最近 _WINDOW_SIZE 次 ping 结果（true=成功） */
+let _pingWindow = [];
+
+function _pushPing(ok) {
+  _pingWindow.push(ok);
+  if (_pingWindow.length > _WINDOW_SIZE) _pingWindow.shift();
+}
+function _windowSuccess() {
+  return _pingWindow.filter(Boolean).length;
+}
+
+/** 根据滑动窗口判决连接状态（窗口未满则跳过） */
+function _evaluateConnection() {
+  if (_pingWindow.length < _WINDOW_SIZE) return;
+  const wins = _windowSuccess();
+  if (app.globalData.connected) {
+    // 已连接 → 成功率不足则断连
+    if (wins < _CONNECTED_THRESHOLD) {
+      app.globalData.connected = false;
+    }
+  } else {
+    // 未连接 → 成功率达标则恢复
+    if (wins >= _DISCONNECTED_THRESHOLD) {
+      app.globalData.connected = true;
+    }
+  }
 }
 
 function _doPing() {
   wx.request({
     url: app.globalData.serverUrl + '/api/ping',
     method: 'GET',
-    timeout: 5000,
+    timeout: 3000,
     success: () => {
-      _failCount = 0;
-      app.globalData.connected = true;
+      _pushPing(true);
+      if (_initialized) _evaluateConnection();
     },
     fail: () => {
-      _failCount++;
-      if (_failCount >= _FAIL_THRESHOLD) {
-        app.globalData.connected = false;
-      }
+      _pushPing(false);
+      if (_initialized) _evaluateConnection();
     }
   });
 }
 
-/** 任意请求成功时重置失败计数 */
-function _resetFailCount() {
-  _failCount = 0;
+/** 阶段 1：5s 内发 10 次 ping，≥8 次成功才算已连接 */
+function _initProbe() {
+  app.globalData.connected = false;
+  let successCount = 0;
+  let doneCount = 0;
+
+  for (let i = 0; i < _INIT_PROBES; i++) {
+    setTimeout(() => {
+      wx.request({
+        url: app.globalData.serverUrl + '/api/ping',
+        method: 'GET',
+        timeout: 3000,
+        success: () => {
+          successCount++;
+          _pushPing(true);
+        },
+        fail: () => {
+          _pushPing(false);
+        },
+        complete: () => {
+          doneCount++;
+          if (doneCount === _INIT_PROBES) {
+            _initialized = true;
+            if (successCount >= _INIT_THRESHOLD) {
+              app.globalData.connected = true;
+            }
+            // 进入阶段 2：稳态心跳
+            _heartbeatTimer = setInterval(_doPing, _HEARTBEAT_MS);
+          }
+        }
+      });
+    }, i * (_INIT_WINDOW_MS / _INIT_PROBES)); // 每 500ms 发一次
+  }
+}
+
+/** 成功的业务请求立即标记已连接（比心跳更实时） */
+function _resetConnected() {
+  _pushPing(true);                  // 喂一个成功进窗口
+  if (_initialized) _evaluateConnection();
+  app.globalData.connected = true;  // 即时标记
 }
 
 // 缓存 key 前缀
@@ -71,8 +143,7 @@ function request(path, options = {}) {
       },
       success: (res) => {
         if (res.data && res.data.status === 'ok') {
-          app.globalData.connected = true;
-          _resetFailCount();
+          _resetConnected();
           // 写缓存
           if (cacheKey) {
             try {
@@ -110,29 +181,19 @@ function request(path, options = {}) {
 
 /**
  * 快速健康检查 — 仅用于设置页诊断
- * 成功时重置失败计数 + 启动后台心跳
- * 单次失败不标记离线（由心跳 + 失败阈值判定）
+ * 默认先启动初始探测（如尚未完成），再单次 ping 实时查询
  */
 function checkConnection() {
-  // 确保心跳已启动
-  _startHeartbeat();
+  if (!_initialized) _initProbe();
   return new Promise((resolve) => {
-    const url = app.globalData.serverUrl + '/api/ping';
     wx.request({
-      url,
+      url: app.globalData.serverUrl + '/api/ping',
       method: 'GET',
       timeout: 5000,
       success: (res) => {
-        const ok = res.data && res.data.status === 'ok';
-        if (ok) {
-          _failCount = 0;
-          app.globalData.connected = true;
-        }
-        resolve(ok);
+        resolve(res.data && res.data.status === 'ok');
       },
-      fail: () => {
-        resolve(false);
-      }
+      fail: () => resolve(false)
     });
   });
 }
@@ -184,5 +245,5 @@ module.exports = {
   }
 };
 
-// 模块加载时自动启用心跳
-_startHeartbeat();
+// 模块加载时自动开始初始探测
+_initProbe();

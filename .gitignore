@@ -11,4 +11,5 @@ miniprogram/dist/
 .DS_Store
 apk_extracted/
 apk_extracted.zip
+server/logs/
 server/src/debug_*.js

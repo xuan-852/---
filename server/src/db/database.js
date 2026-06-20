@@ -1,6 +1,7 @@
 const initSqlJs = require('sql.js');
 const path = require('path');
 const fs = require('fs');
+const log = require('../utils/logger');
 
 const DB_PATH = path.join(__dirname, '..', '..', 'data', 'njust.db');
 
@@ -78,7 +79,7 @@ async function initDB() {
       const data = sqlDb.export();
       fs.writeFileSync(DB_PATH, Buffer.from(data));
     } catch (e) {
-      console.error('[DB] 保存失败:', e.message);
+      log.error('[DB] 保存失败:', e.message);
     }
   }, 30000);
 
@@ -90,7 +91,7 @@ async function initDB() {
     } catch (e) { /* ignore */ }
   });
 
-  console.log('[DB] 数据库初始化完成:', DB_PATH);
+  log.info('[DB] 数据库初始化完成:', DB_PATH);
   return db;
 }
 
