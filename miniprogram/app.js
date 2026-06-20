@@ -10,7 +10,8 @@ App({
     // 自动判断运行环境：开发者工具直连 localhost
     try {
       const platform = wx.getSystemInfoSync().platform;
-      if (platform === 'windows' || platform === 'mac') {
+      // 非移动端（devtools/windows/mac）直连 localhost
+      if (platform !== 'ios' && platform !== 'android') {
         this.globalData.serverUrl = 'http://localhost:3000';
       }
     } catch (e) { /* 忽略 */ }
