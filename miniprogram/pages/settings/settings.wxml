@@ -18,6 +18,16 @@
         <text>❌ 未绑定</text>
       </view>
     </view>
+    <!-- 诊断信息：仅出错时显示 -->
+    <view wx:if="{{statusError}}" class="status-error">
+      <text>{{statusError}}</text>
+    </view>
+    <!-- 服务器地址 -->
+    <view class="server-info">
+      <text>服务器：{{serverUrl}}</text>
+    </view>
+    <!-- 跳过缓存的强制检查按钮 -->
+    <button class="btn-diag" bindtap="onCheckConnection" size="mini">🔍 强制检查绑定状态（跳过缓存）</button>
   </view>
 
   <!-- 绑定表单 -->

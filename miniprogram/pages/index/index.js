@@ -28,9 +28,11 @@ Page({
   formatDate() {
     const now = new Date();
     const info = getCurrentWeekInfo();
-    const dayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    // JS getDay(): 0=周日, 1=周一..6=周六
+    // DB day: 1=周一..7=周日
+    const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
     return {
-      dateStr: `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ${dayNames[now.getDay() === 0 ? 6 : now.getDay() - 1]}`,
+      dateStr: `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ${dayNames[now.getDay()]}`,
       week: info.week,
       maxWeek: info.maxWeek,
       semester: info.semester
@@ -52,8 +54,9 @@ Page({
     try {
       const cachedSchedule = wx.getStorageSync('njust_cache_schedule_' + week);
       if (cachedSchedule && cachedSchedule.data) {
-        const day = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
-        todayCourses = (cachedSchedule.data.courses || []).filter(c => c.day === day);
+        // DB day: 0=周日, 1=周一..6=周六
+        const dbDay = new Date().getDay(); // JS getDay(): 0=周日, 1=周一..6
+        todayCourses = (cachedSchedule.data.courses || []).filter(c => c.day === dbDay);
         scheduleCount = cachedSchedule.data.courses ? cachedSchedule.data.courses.length : 0;
         hasCache = true;
       }
@@ -90,18 +93,27 @@ Page({
     // 3. 尝试网络更新（每个接口独立容错，单个失败不影响其他）
     try {
       const schedData = await api.getSchedule(week);
-      const day = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
-      todayCourses = (schedData.courses || []).filter(c => c.day === day);
+      const dbDay = new Date().getDay() || 7; // DB: day=1..7 → 周一..周日
+      todayCourses = (schedData.courses || []).filter(c => c.day === dbDay);
       scheduleCount = schedData.courses ? schedData.courses.length : 0;
-    } catch (e) { /* 课表接口失败 — 继续使用缓存 */ }
+    } catch (e) {
+      console.error('[首页] 课表请求失败:', e.message);
+      /* 课表接口失败 — 继续使用缓存 */
+    }
     try {
       const scoreData = await api.getScores();
       scoreCount = (scoreData.scores || []).length;
-    } catch (e) { /* 成绩接口失败 — 继续使用缓存 */ }
+    } catch (e) {
+      console.error('[首页] 成绩请求失败:', e.message);
+      /* 成绩接口失败 — 继续使用缓存 */
+    }
     try {
       const examData = await api.getExams();
       if (examData && examData.exams) examCount = examData.exams.length;
-    } catch (e) { /* 考试接口失败 — 继续使用缓存 */ }
+    } catch (e) {
+      console.error('[首页] 考试请求失败:', e.message);
+      /* 考试接口失败 — 继续使用缓存 */
+    }
 
     this.setData({
       todayCourses,

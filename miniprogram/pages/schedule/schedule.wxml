@@ -1,29 +1,47 @@
-<view class="container">
+<view class="container" bindtouchstart="onTouchStart" bindtouchend="onTouchEnd">
   <!-- 连接状态 -->
-  <view wx:if="{{!connected}}" class="offline-tip">🔴 未连上服务器 · 显示缓存数据</view>
-  <view class="schedule-sub">
-    <text class="semester-label">{{semester}}</text>
-    <text class="week-range">1 - {{maxWeek}} 周</text>
-  </view>
+  <view wx:if="{{!connected}}" class="offline-tip">🔴 离线模式 · 显示缓存数据</view>
 
-  <!-- 周选择器 -->
-  <view class="week-picker">
-    <view class="arrow" bindtap="prevWeek">‹</view>
-    <text class="week-label">第 {{currentWeek}} 周</text>
-    <view class="arrow" bindtap="nextWeek">›</view>
+  <!-- 顶部：学期 + 周信息 -->
+  <view class="schedule-top">
+    <view class="semester-label">{{semester}}</view>
+    <view class="range-label">第 {{currentWeek}} 周 / {{maxWeek}} 周</view>
   </view>
 
   <!-- 课表网格 -->
-  <scroll-view scroll-x class="schedule-scroll">
-    <view class="schedule-grid">
-      <view wx:for="{{days}}" wx:key="*this" class="day-column">
-        <view class="day-header">{{item}}</view>
-        <view wx:for="{{scheduleData[index] || []}}" wx:key="id" class="mini-course">
-          <text class="mini-name">{{item.name}}</text>
-          <text class="mini-time">{{item.start_time}}</text>
-          <text class="mini-location">{{item.location}}</text>
-        </view>
-      </view>
+  <view class="schedule-grid">
+    <!-- 表头行：星期 -->
+    <view class="grid-row grid-header">
+      <view class="cell time-cell"></view>
+      <view wx:for="{{days}}" wx:if="{{item}}" wx:key="*this" class="cell day-cell">{{item}}</view>
     </view>
-  </scroll-view>
+    <!-- 12 节次行 -->
+    <view wx:for="{{12}}" wx:key="*this" class="grid-row">
+      <view class="cell time-cell">
+        <text class="slot-num">{{slots[index]}}</text>
+        <text class="slot-time">{{slotTimes[index]}}</text>
+      </view>
+      <view wx:for="{{7}}" wx:key="*this" class="cell slot-cell"></view>
+    </view>
+
+    <!-- 课程卡片（绝对定位在网格容器内） -->
+    <view wx:for="{{cards}}" wx:key="id" class="course-tile"
+      style="left: {{item.left}}rpx; top: {{item.top}}rpx; width: {{item.width}}rpx; height: {{item.height}}rpx; background: {{item.bg}}; border-color: {{item.border}};">
+      <text class="tile-name" style="color: {{item.textColor}};">{{item.name}}</text>
+      <text wx:if="{{item.location}}" class="tile-location">{{item.location}}</text>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view wx:if="{{!hasCache && cards.length === 0}}" class="empty-state">
+    <text class="empty-icon">📅</text>
+    <text class="empty-text">暂无课表数据，请先绑定并刷新</text>
+  </view>
+
+  <!-- 底部周导航 -->
+  <view class="week-nav">
+    <view class="nav-btn" bindtap="prevWeek">‹ 上一周</view>
+    <view class="nav-current">第 {{currentWeek}} 周</view>
+    <view class="nav-btn" bindtap="nextWeek">下一周 ›</view>
+  </view>
 </view>

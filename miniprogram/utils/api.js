@@ -53,6 +53,7 @@ function _doPing() {
     url: app.globalData.serverUrl + '/api/ping',
     method: 'GET',
     timeout: 8000,
+    header: { 'ngrok-skip-browser-warning': 'true' },
     success: () => {
       _pushPing(true);
       if (_initialized) _evaluateConnection();
@@ -66,27 +67,33 @@ function _doPing() {
 
 /** 阶段 1：并发发 6 次 ping，≥4 次成功才算已连接 */
 function _initProbe() {
-  app.globalData.connected = false;
+  // 不悲观置 false—保持 optimistic 默认值，等探测完再修正
   let successCount = 0;
   let doneCount = 0;
+
+  // 初始探测结果不污染滑动窗口（防止手机高延迟并发超时误判）
+  const savedWindow = [..._pingWindow];
 
   for (let i = 0; i < _INIT_PROBES; i++) {
     wx.request({
       url: app.globalData.serverUrl + '/api/ping',
       method: 'GET',
       timeout: _INIT_TIMEOUT_MS,
+      header: { 'ngrok-skip-browser-warning': 'true' },
       success: () => {
         successCount++;
-        _pushPing(true);
       },
       fail: () => {
-        _pushPing(false);
+        // 忽略失败——不 push 进窗口
       },
       complete: () => {
         doneCount++;
         if (doneCount === _INIT_PROBES) {
           _initialized = true;
+          // 恢复窗口（清掉中间可能混入的 complete 回调数据）
+          _pingWindow = savedWindow;
           if (successCount >= _INIT_THRESHOLD) {
+            _pushPing(true);  // 喂一个成功，让窗口起点为正
             app.globalData.connected = true;
           }
           // 进入阶段 2：稳态心跳
@@ -137,7 +144,8 @@ function request(path, options = {}) {
       timeout,
       header: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true'
       },
       success: (res) => {
         if (res.data && res.data.status === 'ok') {
@@ -179,15 +187,27 @@ function request(path, options = {}) {
 
 /**
  * 快速健康检查 — 仅用于设置页诊断
- * 默认先启动初始探测（如尚未完成），再单次 ping 实时查询
+ * 优先使用滑动窗口的累积结果，窗口不足时再发单次 ping
  */
 function checkConnection() {
   if (!_initialized) _initProbe();
   return new Promise((resolve) => {
+    // 如果已经有足够的窗口数据，直接用
+    if (_pingWindow.length >= _WINDOW_SIZE) {
+      resolve(_windowSuccess() >= _CONNECTED_THRESHOLD);
+      return;
+    }
+    // 窗口未满 — 用当前全局状态
+    if (app.globalData.connected) {
+      resolve(true);
+      return;
+    }
+    // 全局也是 false 才发 ping 验证
     wx.request({
       url: app.globalData.serverUrl + '/api/ping',
       method: 'GET',
       timeout: 8000,
+      header: { 'ngrok-skip-browser-warning': 'true' },
       success: (res) => {
         resolve(res.data && res.data.status === 'ok');
       },
@@ -198,12 +218,17 @@ function checkConnection() {
 
 module.exports = {
   // ─── 用户 ───
-  getUserStatus: () => request('/api/user/status', { cacheKey: CACHE_KEYS.STATUS }),
+  // 状态检查不走缓存——避免手机端网络波动时回退到旧"未绑定"缓存
+  getUserStatus: () => request('/api/user/status'),
 
-  bindAccount: (username, password) => request('/api/user/bind', {
-    method: 'POST',
-    data: { username, password }
-  }),
+  bindAccount: (username, password) => {
+    // 绑定前先清除旧状态缓存，防止后续回退到旧数据
+    try { wx.removeStorageSync(CACHE_KEYS.STATUS); } catch (e) { /* ignore */ }
+    return request('/api/user/bind', {
+      method: 'POST',
+      data: { username, password }
+    });
+  },
 
   refreshData: () => request('/api/refresh', { method: 'POST', timeout: 120000 }),
 

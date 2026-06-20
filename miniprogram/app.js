@@ -30,6 +30,7 @@ App({
       url: bootstrapUrl + '/api/config',
       method: 'GET',
       timeout: 5000,
+      header: { 'ngrok-skip-browser-warning': 'true' },
       success: (res) => {
         if (res.data && res.data.status === 'ok' && res.data.data) {
           const cfg = res.data.data;

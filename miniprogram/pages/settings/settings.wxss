@@ -109,6 +109,39 @@
   line-height: 1.6;
 }
 
+/* 诊断信息 */
+.status-error {
+  margin-top: 12rpx;
+  padding: 10rpx 16rpx;
+  background: rgba(255, 82, 82, 0.12);
+  border-radius: 8rpx;
+  font-size: 24rpx;
+  color: #ff8a80;
+  word-break: break-all;
+}
+.server-info {
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  color: #666;
+  text-align: center;
+  word-break: break-all;
+}
+.btn-diag {
+  margin-top: 16rpx;
+  background: #2a2a5e;
+  color: #b0b0ff;
+  border: 2rpx solid #4a4a8e;
+  border-radius: 10rpx;
+  font-size: 24rpx;
+  padding: 10rpx 20rpx;
+  text-align: center;
+}
+.btn-diag[disabled] {
+  background: #222;
+  color: #555;
+  border-color: #333;
+}
+
 /* 关于 */
 .about-text {
   font-size: 26rpx;

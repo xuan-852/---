@@ -14,6 +14,14 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// 请求日志中间件 — 记录每个请求的方法、路径和来源 IP
+app.use((req, res, next) => {
+  if (req.path !== '/api/ping') {  // ping 太频繁，忽略
+    log.info(`[HTTP] ${req.method} ${req.path} from ${req.ip}`);
+  }
+  next();
+});
+
 // 路由
 app.use('/api/pet', petRoutes);
 app.use('/api', miniRoutes);

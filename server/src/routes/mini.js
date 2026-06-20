@@ -216,7 +216,10 @@ router.post('/refresh', auth, async (req, res) => {
 
 /** 保存成绩到数据库（兼容桥接服务的数据格式） */
 function saveScoresToDB(db, scores) {
-  if (!scores.length) return;
+  if (!scores.length) {
+    log.warn('[mini] ⚠️ 成绩数据为空，跳过写入（保留已有数据）');
+    return;
+  }
   // 表由 schema.sql 自动创建，这里直接用 db.run 插入（避免 prepare+free 循环问题）
   let count = 0;
   for (const s of scores) {
@@ -238,7 +241,10 @@ function saveScoresToDB(db, scores) {
 
 /** 保存考试安排到数据库 */
 function saveExamsToDB(db, exams) {
-  if (!exams.length) return;
+  if (!exams.length) {
+    log.warn('[mini] ⚠️ 考试数据为空，跳过写入（保留已有数据）');
+    return;
+  }
   // 先清空旧考试（每次全量更新）
   db.run('DELETE FROM exams');
   let count = 0;
@@ -262,6 +268,16 @@ function saveExamsToDB(db, exams) {
 function saveScheduleToDB(db, schedule) {
   if (!schedule || typeof schedule !== 'object') return;
   
+  // 统计待插入总数
+  let totalEntries = 0;
+  for (const [key, entries] of Object.entries(schedule)) {
+    if (Array.isArray(entries)) totalEntries += entries.length;
+  }
+  if (totalEntries === 0) {
+    log.warn('[mini] ⚠️ 课表数据为空，跳过写入（保留已有数据）');
+    return;
+  }
+
   // 先清空旧课表（每次全量更新）
   db.run('DELETE FROM courses');
 
@@ -274,8 +290,8 @@ function saveScheduleToDB(db, schedule) {
     '晚上': { start: 10, end: 12 },
   };
   const dayMap = {
-    '星期一': 0, '星期二': 1, '星期三': 2, '星期四': 3,
-    '星期五': 4, '星期六': 5, '星期日': 6,
+    '星期一': 1, '星期二': 2, '星期三': 3, '星期四': 4,
+    '星期五': 5, '星期六': 6, '星期日': 0,
   };
 
   /**
