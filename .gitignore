@@ -12,4 +12,5 @@ miniprogram/dist/
 apk_extracted/
 apk_extracted.zip
 server/logs/
+server/bridge.token
 server/src/debug_*.js

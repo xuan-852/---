@@ -11,7 +11,6 @@ module.exports = {
       restart_delay: 5000,
       env: {
         PORT: 3456,
-        BRIDGE_TOKEN: 'bkjw-bridge-4edf75e83c95',
       },
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
       error_file: 'logs/bridge-error.log',

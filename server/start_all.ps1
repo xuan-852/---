@@ -32,7 +32,8 @@ $bridgeReady = $false
 for ($i = 0; $i -lt 30; $i++) {
     Start-Sleep 1
     try {
-        $resp = Invoke-WebRequest -Uri "http://localhost:3456/status" -Headers @{"x-bridge-token"="bkjw-bridge-4edf75e83c95"} -TimeoutSec 2 -ErrorAction Stop
+        $bt = if (Test-Path "$ROOT\bridge.token") { (Get-Content "$ROOT\bridge.token" -Raw).Trim() } else { "" }
+        $resp = Invoke-WebRequest -Uri "http://localhost:3456/status" -Headers @{"x-bridge-token"=$bt} -TimeoutSec 2 -ErrorAction Stop
         $bridgeReady = $true
         Write-Host "  ✅ 桥接服务就绪" -ForegroundColor Green
         break

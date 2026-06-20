@@ -73,15 +73,26 @@ async function initDB() {
 
   db = wrapDB(sqlDb);
 
-  // 定期保存到磁盘（每 30 秒）
-  setInterval(() => {
+  // 磁盘持久化函数
+  function saveToDisk() {
     try {
       const data = sqlDb.export();
       fs.writeFileSync(DB_PATH, Buffer.from(data));
     } catch (e) {
       log.error('[DB] 保存失败:', e.message);
     }
-  }, 30000);
+  }
+
+  // 包装 run 方法 - 写操作后自动保存
+  const origRun = db.run.bind(sqlDb);
+  db.run = function(sql, params) {
+    origRun(sql, params);
+    saveToDisk();
+    return { lastInsertRowid: 0, changes: sqlDb.getRowsModified() };
+  };
+
+  // 定期保存到磁盘（每 10 秒兜底）
+  setInterval(saveToDisk, 10000);
 
   // 进程退出时保存
   process.on('exit', () => {
