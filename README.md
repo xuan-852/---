@@ -2,7 +2,7 @@
 
 > 南京理工大学教务系统集成工具 —— Web 课表看板 + 微信小程序 + 桌面推送后端
 
-**当前版本：v0.2** — 本地运行版，已修复移动端连接与课表显示问题。
+**当前版本：v0.3** — 全自动可靠运行版，PM2 进程守护 + Bridge 崩溃自恢复 + 开机自启。
 
 ![Node](https://img.shields.io/badge/Node.js-18%2B-339933?logo=nodedotjs)
 ![Express](https://img.shields.io/badge/Express-4.x-000000?logo=express)
@@ -37,9 +37,10 @@
 | 📊 **成绩查询** | 按学期分组，自动统计 GPA 与总学分 | ✅ 完成 |
 | 📝 **考试安排** | 考试时间、地点、座位号查询 | ✅ 完成 |
 | 🔐 **IDS 认证** | AES-256-CBC 加密登录，验证码支持 | ✅ 完成 |
-| 🌉 **浏览器桥接** | 持久化 Edge 绕过反爬，自动续期 | ⚠️ 需手动登录 |
+| 🌉 **浏览器桥接** | 持久化 Edge 绕过反爬，eHall2 SPA 自动重登 | ✅ 自动登录 + 崩溃恢复 |
+| 🔔 **桌面推送** | 每日课表提醒 + 自动刷新成绩 | ✅ 完成 |
+| 🛡️ **进程守护** | PM2 自动重启 + 开机自启 | ✅ 完成 |
 | 📱 **微信小程序** | 移动端绑定/课表/成绩/考试 | ✅ 已修复连接问题 |
-| 🔔 **桌面推送** | 每日课表提醒 + 自动刷新成绩 | 🚧 部分完成 |
 | 📌 **桌面便签** | 跨设备便签同步 | 🚧 未完工 |
 | ☁️ **云部署** | 摆脱本地依赖 | ❌ 未开始 |
 
@@ -64,8 +65,14 @@
 │   ├── data/                       # SQLite 数据库文件（.gitignore）
 │   │   └── njust.db
 │   ├── bkjw_bridge.js              # Edge 浏览器桥接（端口 3456）
-│   ├── start_bridge.vbs            # 静默自启 VBS 脚本
-│   ├── setup_bridge.ps1            # 安装/卸载菜单
+│   ├── ecosystem.config.js         # PM2 进程管理配置
+│   ├── start-all.ps1               # 一键启动脚本（PM2 resurrect）
+│   ├── startup.bat                 # 开机自启 BAT 脚本
+│   ├── logs/                       # 日志目录
+│   │   ├── server-out.log          # 主服务日志
+│   │   ├── server-error.log
+│   │   ├── bridge-out.log          # Bridge 日志
+│   │   └── bridge-error.log
 │   ├── .env.example                # 环境变量模板
 │   └── package.json
 │
@@ -125,30 +132,54 @@ cp .env.example .env
 
 > **获取 BRIDGE_TOKEN**：先启动 `bkjw_bridge.js`，控制台会打印 Token，复制到 `.env` 中。
 
-### 启动（三个终端窗口）
+### 启动（推荐：PM2 一键启动）
+
+```powershell
+cd server
+# 安装 PM2（首次）
+npm install -g pm2
+
+# 一键启动双进程（自动守护 + 崩溃重启）
+pm2 start ecosystem.config.js
+pm2 save   # 保存进程列表，下次开机自动恢复
+```
+
+启动后访问 http://localhost:3000 即可查看课表看板。
+
+### 手动启动（逐个窗口）
 
 ```powershell
 # 终端 1：桥接服务（持久化浏览器）
 cd server
-& "C:\Program Files\nodejs\node.exe" bkjw_bridge.js
+$env:BRIDGE_CRED_TOKEN = "bridge-cred-4a7f3b2e8c11"
+node bkjw_bridge.js
 
 # 终端 2：主服务
-cd server\src
-& "C:\Program Files\nodejs\node.exe" index.js
+cd server
+node src/index.js
 
 # 终端 3：ngrok 内网穿透（小程序真机调试用）
 ngrok http 3000
 ```
 
-启动后访问 http://localhost:3000 即可查看课表看板。
+### 开机自启
 
-### ⚠️ 桥接服务首次使用
+已配置 Windows 启动文件夹快捷方式，**登录 Windows 后自动启动**双服务：
+`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\BKJW-Server.lnk`
 
-1. 启动 `bkjw_bridge.js` → Edge 浏览器自动打开（最小化到任务栏）
-2. 手动将 Edge 窗口恢复，导航到 http://ehall.njust.edu.cn
-3. 完成统一认证登录
-4. 登录成功后关闭 Edge 窗口（进程保留，下次自动恢复会话）
-5. 控制台显示 `isLoggedIn: true` 即就绪
+也可手动运行 `start-all.ps1`：
+
+```powershell
+powershell -File server\start-all.ps1
+```
+
+### ⚠️ 首次使用桥接
+
+启动后，Edge 浏览器会自动打开 eHall2 SPA。**首次需要手动登录一次**：
+1. 在打开的 Edge 中完成统一认证登录（学号+密码）
+2. 登录成功后关闭 Edge 窗口（会话已保存）
+3. 控制台显示 `✅ 已登录` 即就绪
+4. **此后 Bridge 可自动重登**（通过 eHall2 SPA iframe 点击「教务系统（师生端）」）
 
 ### 微信小程序
 
@@ -201,6 +232,7 @@ ngrok http 3000
 | **Web 前端** | 原生 HTML/CSS/JS，CSS Variables 双主题，CSS Grid |
 | **桥接反爬** | Playwright（持久化 Edge 上下文） |
 | **内网穿透** | ngrok 3.x（cross-churn-distance.ngrok-free.dev） |
+| **进程守护** | PM2（autorestart + max_restarts + restart_delay） |
 | **小程序** | 微信小程序原生框架（appid: wx90a063c9201431f3） |
 | **安全** | AES-256-CBC / GCM，Token 鉴权，x-bridge-token |
 
@@ -226,9 +258,69 @@ ngrok http 3000
 ⚠️ jwxt.njust.edu.cn 全段 404（学校服务器反向代理问题，截至 2026 年 6 月），因此采用 **浏览器桥接模式**：
 通过 Playwright 启动持久化 Edge 浏览器，访问 **bkjw.njust.edu.cn** 老版教务系统来获取数据。
 
+### 自动重登流程
+
+```
+Bridge 登录检查（每 15 分钟）
+  ├── 已登录 ✅ → 继续使用
+  └── 已掉线 ❌ → 触发自动重登
+       ├── 请求凭据（BRIDGE_CRED_TOKEN）
+       ├── 清除 BKJW Cookie
+       ├── 导航到 eHall2 SPA → #/searchPage
+       ├── 关闭弹窗遮挡
+       ├── iframe 中查找「教务系统（师生端）」并点击
+       ├── 等待 BKJW 新标签页加载
+       └── 验证登录状态
+            ├── 成功 ✅ → 抓取数据
+            └── 失败 ❌ → 5 分钟后 PM2 重启进程
+```
+
 ---
 
-## � 更新日志（v0.2）
+## ✨ 更新日志（v0.3）
+
+### 2026-06-24 — 全自动可靠性升级
+
+#### 🛡️ 进程守护（PM2）
+
+| # | 改进 | 描述 |
+|---|------|------|
+| 1 | **PM2 双进程管理** | `bkjw-server` + `bkjw-bridge` 均在 PM2 守护下，崩溃自动重启 |
+| 2 | **PM2 崩溃恢复验证** | 外部 `taskkill /f` 模拟崩溃后，PM2 在 10 秒内自动拉起（`↺` 计数增加） |
+| 3 | **开机自启** | Windows 启动文件夹快捷方式，登录后自动 `pm2 resurrect` 恢复全部进程 |
+| 4 | **一键启动脚本** | `start-all.ps1` 自动清理端口 + 启动双服务 + 日志重定向 |
+
+#### 🔄 Bridge 自恢复体系（5 层）
+
+| 层 | 机制 | 触发条件 | 恢复时间 |
+|----|------|----------|----------|
+| 1 | `context/page.on('crash')` | 浏览器标签页崩溃 | 10 秒 |
+| 2 | `scheduleBrowserRestart()` | 启动失败 | 30 秒重试 |
+| 3 | `uncaughtException` handler | Node 进程异常 | 即时重启 |
+| 4 | `kickWatchdog()` | 浏览器宕机 > 5 分钟 | 退出进程，PM2 接管 |
+| 5 | PM2 `autorestart` | 进程退出 | 5-10 秒 |
+
+#### 🔑 自动重登（eHall2 SPA 路径）
+
+| # | 改进 | 描述 |
+|---|------|------|
+| 1 | **eHall2 SPA 路径** | 不再依赖旧版 eHall，改走 `ehall2.njust.edu.cn` Vue 门户 |
+| 2 | **iframe 交互** | 在 #/searchPage 中定位 iframe，通过 `contentDocument` 点击「教务系统（师生端）」 |
+| 3 | **Plan C 同步升级** | `browser_fallback.js` 临时浏览器也使用 eHall2 SPA 路径，确保降级时同样有效 |
+| 4 | **15 分钟登录检查** | 每 15 分钟验证 BKJW 会话有效性，发现掉线立即重登 |
+
+#### ⚡ 其他改进
+
+| # | 改进 | 描述 |
+|---|------|------|
+| 1 | **心跳缩短至 5 分钟** | 更快检测 Bridge 失联 |
+| 2 | **Bridge 语法验证** | `node -c` 检查全部通过 |
+| 3 | **Plan C 语法验证** | `browser_fallback.js` 重构后无错误 |
+| 4 | **PM2 配置优化** | 添加 `max_memory_restart`、`kill_timeout`、环境变量 |
+
+---
+
+## ✨ 更新日志（v0.2）
 
 ### 2026-06-20
 
@@ -263,23 +355,23 @@ ngrok http 3000
 
 > 以下问题当前版本已知未解决，欢迎参与修复。
 
-### 🔴 严重
+### 🔴 已解决（v0.3）
 
-| # | 问题 | 描述 | 影响范围 | 可能方案 |
-|---|------|------|----------|----------|
-| 1 | **服务器不稳定，经常意外退出** | 终端中大量 `exit code 1`，Node 进程无守护机制，崩溃后需要手动重启 | 全部服务 | 添加 PM2 / systemd 进程守护，或编写 Windows 自启+保活脚本 |
-| 2 | **桥接服务需要手动登录** | Edge 浏览器首次启动后，需用户手动打开 eHall 完成认证，重启后偶尔会掉登录 | 数据刷新 | 实现自动检测登录态 + 自动重新认证；或改用无头 Requests 直连 |
+| # | 问题 | 解决方案 |
+|---|------|----------|
+| 1 | **服务器不稳定，经常意外退出** | PM2 进程守护 + crash handler 自动恢复 |
+| 2 | **桥接服务需要手动登录** | eHall2 SPA 自动重登，5 层自恢复保障 |
+| 3 | **Node.js 不在系统 PATH** | PM2 配置中指定 `interpreter` 完整路径 |
+| 4 | **无统一启动脚本** | `start-all.ps1` + `ecosystem.config.js` 一键启动 |
 
-### 🟡 中等
+### 🟡 中等（待解决）
 
 | # | 问题 | 描述 | 可能方案 |
 |---|------|------|----------|
-| 3 | **Node.js 不在系统 PATH** | v24.16.0 安装在 `C:\Program Files\nodejs`，但未加入 PATH，需用完整路径调用 | 用 `winget` 重装或手动加入 PATH |
-| 4 | **无统一启动脚本** | 需要手动开 3 个 PowerShell 窗口（bridge + server + ngrok） | 编写 `start.ps1` 一键启动所有服务 |
-| 5 | **日志系统不完善** | `server/logs/` 目录为空，scheduler 和 bridge 的日志仅在控制台输出 | 添加 winston / pino 日志，文件轮转 |
-| 6 | **ngrok URL 硬编码** | 小程序默认服务器地址是硬编码的 ngrok 域名，更换 ngrok 账号后需要改代码 | 改用环境变量或小程序云函数中转 |
-| 7 | **加密示例密钥** | `.env` 和 `.env.example` 中的加密密钥是占位符，实际应用需更换 | 添加密钥生成脚本 |
-| 8 | **考试安排抓取不稳定** | `fetchExams()` 依赖页面 DOM 结构和定时等待，网络慢时可能超时或报错 | 增加重试 + 更健壮的等待策略（waitForSelector） |
+| 1 | **日志系统不完善** | `server/logs/` 仅有 PM2 重定向日志，缺结构化 | 添加 winston / pino 日志，文件轮转 |
+| 2 | **ngrok URL 硬编码** | 小程序默认服务器地址是硬编码的 ngrok 域名 | 改用环境变量或小程序云函数中转 |
+| 3 | **加密示例密钥** | `.env` 中的加密密钥是占位符 | 添加密钥生成脚本 |
+| 4 | **考试安排抓取不稳定** | `fetchExams()` 依赖页面 DOM 结构和定时等待 | 增加重试 + waitForSelector |
 
 ### 🟢 低优先级
 
@@ -294,15 +386,17 @@ ngrok http 3000
 
 ## 📋 待办清单（Roadmap）
 
-### v0.3 — 体验优化（下一版本）
+### v0.3 — 可靠性升级（当前版本 ✅）
 
-- [ ] **进程守护** — 添加 PM2 配置或 Windows 自启 VBS，崩溃自动重启
-- [ ] **一键启动脚本** — `start.ps1` 同时启动 bridge + server + ngrok
+- [x] **进程守护** — PM2 配置 + 崩溃自动重启 + 5 层 Bridge 自恢复
+- [x] **一键启动脚本** — `start-all.ps1` + `ecosystem.config.js`
+- [x] **自动重登** — eHall2 SPA iframe 路径，无需手动操作
+- [x] **开机自启** — 启动文件夹快捷方式
+
+### v0.4 — 体验优化（下一版本）
+
 - [ ] **日志系统** — 添加 winston，按日期滚动 + 控制台输出
 - [ ] **ngrok URL 配置化** — 从 `.env` 读取，小程序端通过 `/api/config` 获取
-
-### v0.3 — 体验优化
-
 - [ ] **小程序 UI 打磨** — 骨架屏加载、下拉刷新、更好的错误提示
 - [ ] **课表教师/地点显示** — 从桥接数据中正确提取并写入 DB
 - [ ] **考试提醒推送** — 考试前 1 天 / 3 天自动发送小程序订阅消息
@@ -331,16 +425,20 @@ ngrok http 3000
 
 ```
 User ←→ 微信小程序 ←→ ngrok ←→ [Express :3000] ←→ [Bridge :3456] ←→ Edge 浏览器 ←→ bkjw.njust.edu.cn
-                                    ↕
-                                SQLite (njust.db)
+                                      ↕                    ↕
+                                  SQLite (njust.db)       PM2 守护进程
+                                      ↕                    ↕
+                               Scheduler (60min)    开机自启 (Startup 文件夹)
 ```
 
 ### 痛点
 
-1. **三进程串联** — 小程序 → ngrok → Express → Bridge → Edge，任意一环断裂则全链路不可用
+1. **长链串联** — 小程序 → ngrok → Express → Bridge → Edge，多环节依赖
 2. **本地依赖** — 全部跑在 Windows 个人电脑上，关机/休眠/断网即停服
 3. **单用户** — 数据库设计为单用户模式（`users` 表 LIMIT 1）
 4. **sql.js 内存数据库** — 写入后需手动 `save()` 到文件，进程崩溃会丢数据
+
+> ✅ **v0.3 已解决**：PM2 + 自恢复机制缓解了链路断裂问题
 
 ### 重构方向（v1.0 目标）
 

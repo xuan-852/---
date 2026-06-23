@@ -14,3 +14,5 @@ apk_extracted.zip
 server/logs/
 server/bridge.token
 server/src/debug_*.js
+server/debug_*.js
+server/check_*.js

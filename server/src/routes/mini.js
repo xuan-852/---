@@ -96,6 +96,29 @@ router.post('/user/bind', auth, (req, res) => {
   }
 });
 
+// ========== Bridge 凭据接口（Plan A 自动重登用） ==========
+// Bridge 通过此接口请求已存储的教务系统凭据
+const BRIDGE_CRED_TOKEN = process.env.BRIDGE_CRED_TOKEN || '';
+
+router.get('/bridge-cred', (req, res) => {
+  // 用专用 token 鉴权（区别于 MINI_TOKEN）
+  const token = req.headers['x-bridge-cred-token'];
+  if (!BRIDGE_CRED_TOKEN || token !== BRIDGE_CRED_TOKEN) {
+    return res.status(401).json({ status: 'error', message: '未授权' });
+  }
+  const db = getDB();
+  const user = db.prepare('SELECT id, username, password_enc FROM users LIMIT 1').get();
+  if (!user) {
+    return res.status(404).json({ status: 'error', message: '数据库无凭据' });
+  }
+  try {
+    const password = decrypt(user.password_enc);
+    res.json({ status: 'ok', data: { username: user.username, password } });
+  } catch (e) {
+    res.status(500).json({ status: 'error', message: '解密失败' });
+  }
+});
+
 // ===== 刷新防抖 =====
 let _lastRefreshAt = 0;
 const _REFRESH_DEBOUNCE_MS = 30000;
@@ -112,76 +135,67 @@ router.post('/refresh', auth, async (req, res) => {
 
   const db = getDB();
   try {
-    // 策略1: 优先使用桥接服务（持久化浏览器）
+    // ===== 策略1: 桥接服务（Plan A） =====
     if (BRIDGE_TOKEN) {
       try {
-        log.info('[mini] 通过桥接服务刷新数据...');
+        log.info('[mini] 🅰️ Plan A: 通过桥接服务刷新...');
         const bridgeResult = await refreshViaBridge();
         if (bridgeResult.ok) {
           // 桥接成功→从桥接服务拉取完整数据写入数据库
-          log.info('[mini] 桥接刷新成功，拉取数据写入本地DB...');
-          
-          let writeErrors = [];
-
-          // 拉取成绩（独立try，失败不影响整体）
-          try {
-            const scoresRes = await axios.get(`${BRIDGE_URL}/scores`, {
-              headers: { 'x-bridge-token': BRIDGE_TOKEN }, timeout: 10000
-            });
-            if (scoresRes.data?.ok && Array.isArray(scoresRes.data.data)) {
-              saveScoresToDB(db, scoresRes.data.data);
-            }
-          } catch (e) {
-            writeErrors.push('scores: ' + e.message);
-          }
-          
-          // 拉取课表（独立try）
-          try {
-            const schedRes = await axios.get(`${BRIDGE_URL}/schedule`, {
-              headers: { 'x-bridge-token': BRIDGE_TOKEN }, timeout: 10000
-            });
-            if (schedRes.data?.ok) {
-              saveScheduleToDB(db, schedRes.data.data);
-            }
-          } catch (e) {
-            writeErrors.push('schedule: ' + e.message);
-          }
-
-          // 拉取考试安排（独立try）
-          try {
-            const examsRes = await axios.get(`${BRIDGE_URL}/exams`, {
-              headers: { 'x-bridge-token': BRIDGE_TOKEN }, timeout: 10000
-            });
-            if (examsRes.data?.ok && Array.isArray(examsRes.data.data)) {
-              saveExamsToDB(db, examsRes.data.data);
-            }
-          } catch (e) {
-            writeErrors.push('exams: ' + e.message);
-          }
-
-          if (writeErrors.length > 0) {
-            log.warn('[mini] ⚠️ 部分写入失败:', writeErrors.join('; '));
-          }
-
-          return res.json({
-            status: 'ok',
-            source: 'bridge',
-            data: bridgeResult
-          });
+          log.info('[mini] ✅ Plan A 成功，拉取数据写入本地DB...');
+          await writeBridgeDataToDB(db);
+          return res.json({ status: 'ok', source: 'bridge', data: bridgeResult });
         }
       } catch (bridgeErr) {
-        log.warn('[mini] 桥接服务不可用，回退到直接登录:', bridgeErr.message);
-        log.warn('[mini] 详细:', JSON.stringify(bridgeErr, Object.getOwnPropertyNames(bridgeErr)));
+        const msg = bridgeErr.response?.data?.error || bridgeErr.message;
+        const needsManual = bridgeErr.response?.data?.needsManual;
+        log.warn(`[mini] ⚠️ Plan A 失败: ${msg}`);
+        
+        // 如果 Bridge 自动重登失败（验证码等），触发 Plan C
+        if (needsManual) {
+          log.info('[mini] 🅲 Plan A 自动重登失败，触发 Plan C 临时浏览器...');
+        } else {
+          log.info('[mini] ⚡ Bridge 不可用，触发 Plan C 临时浏览器...');
+        }
       }
     }
 
-    // 策略2: 直接登录教务系统（旧方案）
+    // ===== 策略2: Plan C 临时浏览器直连 =====
     const user = db.prepare('SELECT * FROM users LIMIT 1').get();
     if (!user) {
       return res.status(400).json({ status: 'error', message: '请先在设置中绑定教务账号' });
     }
-
     const password = decrypt(user.password_enc);
+
+    try {
+      log.info('[mini] 🅲 Plan C: 启动临时浏览器抓取...');
+      const browserFallback = require('../services/browser_fallback');
+      const result = await browserFallback.fetchWithTempBrowser(user.username, password);
+
+      // 将 Plan C 结果写入 DB
+      try { saveScoresToDB(db, result.scores); } catch (e) { log.warn('[mini] PlanC 写成绩失败:', e.message); }
+      try { saveScheduleToDB(db, result.schedule); } catch (e) { log.warn('[mini] PlanC 写课表失败:', e.message); }
+      try { saveExamsToDB(db, result.exams); } catch (e) { log.warn('[mini] PlanC 写考试失败:', e.message); }
+
+      // 更新最后登录时间
+      db.run('UPDATE users SET last_login_at = datetime(\'now\') WHERE id = ?', [user.id]);
+
+      log.info('[mini] ✅ Plan C 完成');
+      return res.json({
+        status: 'ok',
+        source: 'browser_fallback',
+        data: {
+          scoresCount: result.scores.length,
+          scheduleCount: Object.keys(result.schedule).length,
+          examsCount: result.exams.length,
+        }
+      });
+    } catch (planCErr) {
+      log.warn(`[mini] ❌ Plan C 也失败: ${planCErr.message}`);
+      log.info('[mini] ⚡ Plan C 失败，回退到策略3 直连HTTP...');
+    }
+
+    // ===== 策略3: 直接 HTTP 登录（旧方案） =====
     const result = await njust.login(user.username, password);
     
     // 获取课表和成绩和考试
@@ -199,6 +213,7 @@ router.post('/refresh', auth, async (req, res) => {
     // 更新学期
     db.run('UPDATE users SET semester = ?, last_login_at = datetime(\'now\') WHERE id = ?', [currentSem, user.id]);
 
+    log.info('[mini] ✅ 策略3 HTTP 直连完成');
     res.json({
       status: 'ok',
       source: 'direct',
@@ -213,6 +228,44 @@ router.post('/refresh', auth, async (req, res) => {
     res.status(500).json({ status: 'error', message: e.message });
   }
 });
+
+/**
+ * 从 Bridge 拉取全量数据写入本地 DB
+ */
+async function writeBridgeDataToDB(db) {
+  let writeErrors = [];
+
+  try {
+    const scoresRes = await axios.get(`${BRIDGE_URL}/scores`, {
+      headers: { 'x-bridge-token': BRIDGE_TOKEN }, timeout: 10000
+    });
+    if (scoresRes.data?.ok && Array.isArray(scoresRes.data.data)) {
+      saveScoresToDB(db, scoresRes.data.data);
+    }
+  } catch (e) { writeErrors.push('scores: ' + e.message); }
+  
+  try {
+    const schedRes = await axios.get(`${BRIDGE_URL}/schedule`, {
+      headers: { 'x-bridge-token': BRIDGE_TOKEN }, timeout: 10000
+    });
+    if (schedRes.data?.ok) {
+      saveScheduleToDB(db, schedRes.data.data);
+    }
+  } catch (e) { writeErrors.push('schedule: ' + e.message); }
+
+  try {
+    const examsRes = await axios.get(`${BRIDGE_URL}/exams`, {
+      headers: { 'x-bridge-token': BRIDGE_TOKEN }, timeout: 10000
+    });
+    if (examsRes.data?.ok && Array.isArray(examsRes.data.data)) {
+      saveExamsToDB(db, examsRes.data.data);
+    }
+  } catch (e) { writeErrors.push('exams: ' + e.message); }
+
+  if (writeErrors.length > 0) {
+    log.warn('[mini] ⚠️ 部分写入失败:', writeErrors.join('; '));
+  }
+}
 
 /** 保存成绩到数据库（兼容桥接服务的数据格式） */
 function saveScoresToDB(db, scores) {
