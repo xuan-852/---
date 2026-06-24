@@ -33,6 +33,8 @@ function wrapDB(sqlDb) {
           if (params.length > 0) stmt.bind(params);
           stmt.step();
           stmt.free();
+          // prepare().run() 也触发磁盘保存
+          if (typeof _saveToDisk === 'function') _saveToDisk();
           return { changes: sqlDb.getRowsModified() };
         }
       };
@@ -46,6 +48,8 @@ function wrapDB(sqlDb) {
     }
   };
 }
+
+let _saveToDisk = null;
 
 async function initDB() {
   const dataDir = path.dirname(DB_PATH);
@@ -82,6 +86,7 @@ async function initDB() {
       log.error('[DB] 保存失败:', e.message);
     }
   }
+  _saveToDisk = saveToDisk;
 
   // 包装 run 方法 - 写操作后自动保存
   const origRun = db.run.bind(sqlDb);

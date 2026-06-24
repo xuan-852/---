@@ -439,14 +439,118 @@ router.get('/exams', auth, (req, res) => {
   res.json({ status: 'ok', data: { exams: rows } });
 });
 
-// 获取桌面端便签
+// ───── 便签 CRUD（小程序 + 桌面端 + AI 桌宠共用） ─────
+
+// 获取便签列表
 router.get('/reminders', auth, (req, res) => {
   const db = getDB();
-  const rows = db.prepare(
-    'SELECT * FROM reminders ORDER BY created_at DESC LIMIT 50'
-  ).all();
+  const { done, category, priority, source } = req.query;
+  let sql = 'SELECT * FROM reminders WHERE 1=1';
+  const params = [];
 
+  if (done !== undefined) { sql += ' AND done = ?'; params.push(parseInt(done)); }
+  if (category) { sql += ' AND category = ?'; params.push(category); }
+  if (priority) { sql += ' AND priority = ?'; params.push(parseInt(priority)); }
+  if (source) { sql += ' AND source = ?'; params.push(source); }
+
+  sql += ' ORDER BY priority DESC, created_at DESC LIMIT 100';
+
+  const rows = db.prepare(sql).all(...params);
   res.json({ status: 'ok', data: { reminders: rows } });
+});
+
+// 创建便签
+router.post('/reminders', auth, (req, res) => {
+  const { text, remind_at, priority, category, tags, link_type, link_id } = req.body;
+  if (!text || !text.trim()) {
+    return res.status(400).json({ status: 'error', message: '内容不能为空' });
+  }
+
+  const { v4: uuidv4 } = require('uuid');
+  const db = getDB();
+  const id = uuidv4();
+
+  db.run(
+    `INSERT INTO reminders (id, text, remind_at, priority, category, tags, link_type, link_id, source)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'miniprogram')`,
+    [id, text.trim(), remind_at || null, priority || 0, category || 'default', tags || '', link_type || '', link_id || '']
+  );
+
+  log.info(`[Reminders] 创建便签: ${id}`);
+  res.json({ status: 'ok', data: { id } });
+});
+
+// 更新便签
+router.put('/reminders/:id', auth, (req, res) => {
+  const { id } = req.params;
+  const { text, done, priority, category, tags, remind_at, link_type, link_id } = req.body;
+  const db = getDB();
+
+  // 先检查是否存在
+  const existing = db.prepare('SELECT id FROM reminders WHERE id = ?').get(id);
+  if (!existing) {
+    return res.status(404).json({ status: 'error', message: '便签不存在' });
+  }
+
+  const updates = [];
+  const params = [];
+
+  if (text !== undefined) { updates.push('text = ?'); params.push(text); }
+  if (done !== undefined) { updates.push('done = ?'); params.push(parseInt(done)); }
+  if (priority !== undefined) { updates.push('priority = ?'); params.push(parseInt(priority)); }
+  if (category !== undefined) { updates.push('category = ?'); params.push(category); }
+  if (tags !== undefined) { updates.push('tags = ?'); params.push(tags); }
+  if (remind_at !== undefined) { updates.push('remind_at = ?'); params.push(remind_at); }
+  if (link_type !== undefined) { updates.push('link_type = ?'); params.push(link_type); }
+  if (link_id !== undefined) { updates.push('link_id = ?'); params.push(link_id); }
+
+  updates.push('synced_at = datetime(\'now\')');
+  params.push(id);
+
+  db.run(`UPDATE reminders SET ${updates.join(', ')} WHERE id = ?`, params);
+  log.info(`[Reminders] 更新便签: ${id}`);
+  res.json({ status: 'ok' });
+});
+
+// 删除便签
+router.delete('/reminders/:id', auth, (req, res) => {
+  const { id } = req.params;
+  const db = getDB();
+  db.run('DELETE FROM reminders WHERE id = ?', [id]);
+  log.info(`[Reminders] 删除便签: ${id}`);
+  res.json({ status: 'ok' });
+});
+
+// 批量同步便签（桌面端→服务端）
+router.post('/reminders/sync', auth, (req, res) => {
+  const { reminders } = req.body;
+  if (!Array.isArray(reminders)) {
+    return res.status(400).json({ status: 'error', message: 'reminders 必须是数组' });
+  }
+
+  const db = getDB();
+  const upsert = db.prepare(`
+    INSERT INTO reminders (id, text, remind_at, done, priority, category, tags, link_type, link_id, source, synced_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'desktop', datetime('now'))
+    ON CONFLICT(id) DO UPDATE SET
+      text = excluded.text,
+      remind_at = excluded.remind_at,
+      done = excluded.done,
+      priority = excluded.priority,
+      category = excluded.category,
+      tags = excluded.tags,
+      synced_at = datetime('now')
+  `);
+
+  for (const r of reminders) {
+    upsert.run(r.id, r.text, r.remindAt || null, r.done ? 1 : 0,
+      r.priority || 0, r.category || 'default', r.tags || '',
+      r.linkType || '', r.linkId || '');
+  }
+
+  // 返回合并后的全量列表
+  const all = db.prepare('SELECT * FROM reminders ORDER BY priority DESC, created_at DESC LIMIT 100').all();
+  res.json({ status: 'ok', count: reminders.length, data: { reminders: all } });
 });
 
 // 小程序触发推送消息（手动测试用）

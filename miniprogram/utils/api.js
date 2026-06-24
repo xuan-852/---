@@ -244,8 +244,38 @@ module.exports = {
   // ─── 考试安排 ───
   getExams: () => request('/api/exams', { cacheKey: CACHE_KEYS.EXAMS }),
 
-  // ─── 桌面便签 ───
-  getReminders: () => request('/api/reminders', { cacheKey: CACHE_KEYS.REMINDERS }),
+  // ─── 桌面便签（完整 CRUD） ───
+  getReminders: (params) => {
+    let path = '/api/reminders';
+    if (params) {
+      const qs = Object.entries(params)
+        .filter(([, v]) => v !== undefined && v !== null)
+        .map(([k, v]) => k + '=' + encodeURIComponent(v))
+        .join('&');
+      if (qs) path += '?' + qs;
+    }
+    return request(path, { cacheKey: CACHE_KEYS.REMINDERS });
+  },
+
+  createReminder: (data) => request('/api/reminders', {
+    method: 'POST',
+    data
+  }),
+
+  updateReminder: (id, data) => request('/api/reminders/' + id, {
+    method: 'PUT',
+    data
+  }),
+
+  deleteReminder: (id) => request('/api/reminders/' + id, {
+    method: 'DELETE'
+  }),
+
+  // 切换便签完成状态
+  toggleReminder: (id, done) => request('/api/reminders/' + id, {
+    method: 'PUT',
+    data: { done: done ? 1 : 0 }
+  }),
 
   // ─── 手动推送（测试用） ───
   pushMessage: (type, title, body) => request('/api/push', {

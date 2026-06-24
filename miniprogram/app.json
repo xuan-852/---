@@ -30,6 +30,11 @@
         "iconPath": "assets/schedule.png"
       },
       {
+        "pagePath": "pages/reminders/reminders",
+        "text": "便签",
+        "iconPath": "assets/reminder.png"
+      },
+      {
         "pagePath": "pages/scores/scores",
         "text": "成绩",
         "iconPath": "assets/score.png"

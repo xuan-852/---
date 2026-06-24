@@ -50,15 +50,45 @@ CREATE TABLE IF NOT EXISTS push_messages (
   delivered INTEGER DEFAULT 0   -- 0=未推送 1=已推送
 );
 
--- 桌面端便签同步
+-- 便签（桌面端↔小程序双向同步，AI桌宠共享)
 CREATE TABLE IF NOT EXISTS reminders (
   id TEXT PRIMARY KEY,
   text TEXT NOT NULL,
-  remind_at TEXT,
-  done INTEGER DEFAULT 0,
-  source TEXT DEFAULT 'desktop',
+  remind_at TEXT,               -- 提醒时间（可选）
+  done INTEGER DEFAULT 0,       -- 0=待办 1=已完成
+  priority INTEGER DEFAULT 0,   -- 0=普通 1=重要 2=紧急
+  category TEXT DEFAULT 'default', -- default/exam/study/life/work/health
+  tags TEXT DEFAULT '',          -- 逗号分隔标签，供AI语义分类
+  source TEXT DEFAULT 'miniprogram', -- desktop/miniprogram/ai
+  auto_done INTEGER DEFAULT 0,  -- AI自动完成标记
+  link_type TEXT DEFAULT '',    -- 关联类型: exam/course/score (让AI理解上下文)
+  link_id TEXT DEFAULT '',      -- 关联ID
   created_at TEXT DEFAULT (datetime('now')),
   synced_at TEXT DEFAULT (datetime('now'))
+);
+
+-- AI桌宠长期记忆（学习用户习惯、偏好、重要日期）
+CREATE TABLE IF NOT EXISTS pet_memory (
+  id TEXT PRIMARY KEY,
+  type TEXT NOT NULL,            -- preference/habit/event/fact/observation
+  key TEXT NOT NULL,             -- 记忆键名（如 wake_up_time）
+  value TEXT NOT NULL,           -- 记忆值
+  context TEXT DEFAULT '',       -- 附加上下文（JSON）
+  confidence REAL DEFAULT 0.5,   -- 置信度 0-1
+  source TEXT DEFAULT 'ai',      -- ai/user/auto
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(type, key)
+);
+
+-- AI桌宠互动日志
+CREATE TABLE IF NOT EXISTS pet_interactions (
+  id TEXT PRIMARY KEY,
+  type TEXT NOT NULL,            -- chat/reminder_created/reminder_done/query/suggestion
+  content TEXT NOT NULL,         -- 互动内容
+  metadata TEXT DEFAULT '{}',    -- 额外数据(JSON)
+  user_satisfaction INTEGER DEFAULT 0, -- 用户满意度 0-5
+  created_at TEXT DEFAULT (datetime('now'))
 );
 
 -- 考试安排表

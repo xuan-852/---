@@ -1,16 +1,96 @@
 <view class="container">
-  <view class="section">
-    <text class="section-title">📋 桌面便签同步</text>
-    <view wx:if="{{reminders.length === 0}}" class="empty">
-      <text>暂无便签~</text>
-    </view>
-    <view wx:for="{{reminders}}" wx:key="id" class="reminder-card">
-      <view class="reminder-left {{item.done ? 'done' : ''}}">
-        <text class="reminder-text">{{item.text}}</text>
-        <text class="reminder-time">{{item.remind_at || '无提醒时间'}}</text>
+  <!-- 连接状态 -->
+  <view wx:if="{{!connected}}" class="offline-tip">🔴 未连上服务器 · 显示缓存数据</view>
+
+  <!-- 头部 -->
+  <view class="header">
+    <view class="header-top">
+      <text class="section-title">📋 便签本</text>
+      <view class="header-actions">
+        <text class="badge-pending">{{getPendingCount()}} 待办</text>
+        <button class="btn-add" bindtap="openNewForm">＋ 新建</button>
       </view>
-      <view class="reminder-status {{item.done ? 'done-tag' : 'pending-tag'}}">
-        {{item.done ? '✓ 已完成' : '⏳ 待办'}}
+    </view>
+
+    <!-- 分类筛选 -->
+    <view class="category-bar">
+      <view class="cat-chip {{activeCategory === '' ? 'active' : ''}}" bindtap="filterByCategory" data-category="">
+        全部
+      </view>
+      <view wx:for="{{categories}}" wx:key="key" class="cat-chip {{activeCategory === item.key ? 'active' : ''}}"
+        bindtap="filterByCategory" data-category="{{item.key}}"
+        style="--chip-color: {{item.color}}">
+        {{item.label}}
+      </view>
+    </view>
+  </view>
+
+  <!-- 便签列表 -->
+  <view wx:if="{{loading}}" class="loading-row">
+    <text>加载中...</text>
+  </view>
+
+  <view wx:elif="{{reminders.length === 0}}" class="empty">
+    <text class="empty-icon">📝</text>
+    <text class="empty-text">暂无便签，点击右上角新建</text>
+  </view>
+
+  <view wx:else class="reminder-list">
+    <view wx:for="{{reminders}}" wx:key="id" class="reminder-card {{item.done ? 'done' : ''}}"
+      data-item="{{item}}" bindtap="toggleDone">
+      <view class="reminder-left">
+        <!-- 优先级标记 -->
+        <view class="priority-dot" style="background: {{priorityMap[item.priority || 0].color}}"></view>
+        <view class="reminder-content">
+          <text class="reminder-text {{item.done ? 'done-text' : ''}}">{{item.text}}</text>
+          <view class="reminder-meta">
+            <text class="meta-tag" style="border-color: {{getCategoryLabel(item.category).includes('📝') ? '#ff4d6d' : getCategoryLabel(item.category).includes('📚') ? '#4dff88' : getCategoryLabel(item.category).includes('🎯') ? '#ff884d' : getCategoryLabel(item.category).includes('💼') ? '#4dd4ff' : getCategoryLabel(item.category).includes('❤️') ? '#ff6b9d' : '#7c4dff'}}">
+              {{getCategoryLabel(item.category)}}
+            </text>
+            <text wx:if="{{item.remind_at}}" class="meta-time">⏰ {{item.remind_at}}</text>
+            <text wx:if="{{item.tags}}" class="meta-tags">🏷️ {{item.tags}}</text>
+          </view>
+        </view>
+      </view>
+      <!-- 操作按钮 -->
+      <view class="reminder-actions" catchtap="noop">
+        <view class="action-icon edit" bindtap="openEditForm" data-item="{{item}}">✏️</view>
+        <view class="action-icon delete" bindtap="deleteReminder" data-item="{{item}}">🗑️</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 新建/编辑表单（弹窗） -->
+  <view wx:if="{{showForm}}" class="form-overlay" bindtap="closeForm">
+    <view class="form-dialog" catchtap="noop">
+      <text class="form-title">{{editingId ? '编辑便签' : '新建便签'}}</text>
+
+      <textarea class="form-textarea" placeholder="写下你的便签内容..." value="{{formText}}" bindinput="onTextInput" maxlength="500" auto-height />
+
+      <view class="form-row">
+        <text class="form-label">优先级</text>
+        <picker mode="selector" range="{{['普通', '重要', '紧急']}}" value="{{formPriority}}" bindchange="onPriorityChange">
+          <text class="form-value">{{['普通', '重要', '紧急'][formPriority]}}</text>
+        </picker>
+      </view>
+
+      <view class="form-row">
+        <text class="form-label">分类</text>
+        <picker mode="selector" range="{{categories.map(c => c.label)}}" value="{{categories.findIndex(c => c.key === formCategory)}}" bindchange="onCategoryChange">
+          <text class="form-value">{{categories.find(c => c.key === formCategory)?.label || '通用'}}</text>
+        </picker>
+      </view>
+
+      <view class="form-row">
+        <text class="form-label">提醒时间</text>
+        <input class="form-input" type="text" placeholder="YYYY-MM-DD HH:mm" value="{{formRemindAt}}" bindinput="onRemindAtInput" />
+      </view>
+
+      <view class="form-buttons">
+        <button class="btn-cancel" bindtap="closeForm">取消</button>
+        <button class="btn-submit" bindtap="submitForm" disabled="{{submitting || !formText.trim()}}">
+          {{submitting ? '提交中...' : (editingId ? '保存' : '创建')}}
+        </button>
       </view>
     </view>
   </view>

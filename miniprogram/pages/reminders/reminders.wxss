@@ -5,54 +5,203 @@
   padding: 20rpx 30rpx;
 }
 
+/* 头部 */
+.header { margin-bottom: 20rpx; }
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+.header-actions { display: flex; align-items: center; gap: 16rpx; }
+.badge-pending {
+  font-size: 22rpx;
+  color: #7c4dff;
+  background: rgba(124, 77, 255, 0.15);
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+}
+
 .section-title {
-  font-size: 32rpx;
+  font-size: 34rpx;
   font-weight: bold;
   color: #fff;
-  margin-bottom: 20rpx;
   display: block;
 }
 
-.empty {
-  text-align: center;
-  padding: 60rpx;
-  color: #666;
-  font-size: 28rpx;
+/* 分类栏 */
+.category-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
 }
+.cat-chip {
+  font-size: 24rpx;
+  padding: 6rpx 20rpx;
+  border-radius: 20rpx;
+  background: #1a1a3e;
+  color: #aaa;
+  border: 1rpx solid transparent;
+}
+.cat-chip.active {
+  background: rgba(124, 77, 255, 0.2);
+  color: #7c4dff;
+  border-color: #7c4dff;
+}
+
+/* 加载 */
+.loading-row { text-align: center; padding: 60rpx; color: #666; font-size: 28rpx; }
+
+/* 空状态 */
+.empty { text-align: center; padding: 100rpx 0; }
+.empty-icon { font-size: 64rpx; display: block; margin-bottom: 16rpx; }
+.empty-text { font-size: 28rpx; color: #666; }
+
+/* 按钮 */
+.btn-add {
+  background: #7c4dff !important;
+  color: #fff !important;
+  font-size: 24rpx !important;
+  padding: 6rpx 24rpx !important;
+  border-radius: 8rpx !important;
+  border: none !important;
+  line-height: 1.8 !important;
+}
+
+/* 便签列表 */
+.reminder-list { padding-bottom: 40rpx; }
 
 .reminder-card {
   background: #1a1a3e;
   border-radius: 14rpx;
-  padding: 24rpx;
+  padding: 20rpx 24rpx;
   margin-bottom: 14rpx;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  transition: opacity 0.2s;
 }
+.reminder-card.done { opacity: 0.5; }
+
+.reminder-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  flex: 1;
+  min-width: 0;
+}
+.priority-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  margin-top: 8rpx;
+  flex-shrink: 0;
+}
+.reminder-content { flex: 1; min-width: 0; }
 
 .reminder-text {
   font-size: 28rpx;
   color: #fff;
   display: block;
+  word-break: break-word;
 }
-
-.reminder-text.done {
+.reminder-text.done-text {
   text-decoration: line-through;
   color: #666;
 }
 
-.reminder-time {
-  font-size: 22rpx;
-  color: #888;
+.reminder-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8rpx;
+  margin-top: 8rpx;
+}
+.meta-tag {
+  font-size: 20rpx;
+  color: #aaa;
+  padding: 2rpx 10rpx;
+  border-radius: 10rpx;
+  border: 1rpx solid #555;
+}
+.meta-time { font-size: 20rpx; color: #888; }
+.meta-tags { font-size: 20rpx; color: #7c4dff; }
+
+.reminder-actions {
+  display: flex;
+  gap: 10rpx;
+  flex-shrink: 0;
+  margin-left: 12rpx;
+}
+.action-icon { font-size: 32rpx; padding: 4rpx; }
+
+/* 表单弹窗 */
+.form-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-end;
+  z-index: 999;
+}
+.form-dialog {
+  background: #1a1a2e;
+  border-radius: 24rpx 24rpx 0 0;
+  padding: 40rpx 30rpx;
+  width: 100%;
+  box-sizing: border-box;
+}
+.form-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 24rpx;
   display: block;
-  margin-top: 6rpx;
 }
 
-.reminder-status {
-  font-size: 22rpx;
-  padding: 6rpx 16rpx;
-  border-radius: 20rpx;
+.form-textarea {
+  width: 100%;
+  background: #0f0f23;
+  color: #e0e0e0;
+  font-size: 28rpx;
+  border-radius: 12rpx;
+  padding: 16rpx;
+  min-height: 120rpx;
+  margin-bottom: 20rpx;
+  box-sizing: border-box;
 }
 
-.done-tag { background: #1b5e20; color: #4caf50; }
-.pending-tag { background: #3e2723; color: #ff9800; }
+.form-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14rpx 0;
+  border-bottom: 1rpx solid #2a2a4e;
+}
+.form-label { font-size: 28rpx; color: #aaa; }
+.form-value { font-size: 28rpx; color: #fff; }
+.form-input {
+  font-size: 26rpx;
+  color: #fff;
+  text-align: right;
+  flex: 1;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 30rpx;
+}
+.btn-cancel {
+  flex: 1;
+  background: #2a2a4e !important;
+  color: #aaa !important;
+  border: none !important;
+}
+.btn-submit {
+  flex: 1;
+  background: #7c4dff !important;
+  color: #fff !important;
+  border: none !important;
+}
+.btn-submit[disabled] { opacity: 0.4; }

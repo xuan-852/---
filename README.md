@@ -2,7 +2,7 @@
 
 > 南京理工大学教务系统集成工具 —— Web 课表看板 + 微信小程序 + 桌面推送后端
 
-**当前版本：v0.3** — 全自动可靠运行版，PM2 进程守护 + Bridge 崩溃自恢复 + 开机自启。
+**当前版本：v0.4** — 全自动可靠运行版 + 便签+桌宠联动系统，AI 可读写数据库。
 
 ![Node](https://img.shields.io/badge/Node.js-18%2B-339933?logo=nodedotjs)
 ![Express](https://img.shields.io/badge/Express-4.x-000000?logo=express)
@@ -41,7 +41,8 @@
 | 🔔 **桌面推送** | 每日课表提醒 + 自动刷新成绩 | ✅ 完成 |
 | 🛡️ **进程守护** | PM2 自动重启 + 开机自启 | ✅ 完成 |
 | 📱 **微信小程序** | 移动端绑定/课表/成绩/考试 | ✅ 已修复连接问题 |
-| 📌 **桌面便签** | 跨设备便签同步 | 🚧 未完工 |
+| 📌 **桌面便签** | 跨设备便签同步 + 分类/优先级/标签 | ✅ 完成 |
+| 🤖 **AI 桌宠联动** | 便签+记忆系统+统一数据概览，AI 可读写 | ✅ 完成 |
 | ☁️ **云部署** | 摆脱本地依赖 | ❌ 未开始 |
 
 ---
@@ -55,7 +56,8 @@
 │   │   ├── dashboard.html          # Web 课表看板（单页应用）
 │   │   ├── routes/
 │   │   │   ├── mini.js             # 微信小程序 API + 看板 API
-│   │   │   └── pet.js              # 桌面宠物 API
+│   │   │   ├── pet.js              # 桌宠 AI 数据中枢（记忆/互动/概览/智能便签）
+│   │   │   └── mini.js             # 微信小程序 API + 便签 CRUD
 │   │   ├── services/
 │   │   │   ├── njust.js            # IDS 统一认证 + 数据抓取
 │   │   │   └── scheduler.js        # 定时任务调度
@@ -82,7 +84,7 @@
 │   │   ├── api.js                  # 网络请求 + 缓存层 + 心跳
 │   │   ├── constants.js            # 学期配置 & 周次计算
 │   │   └── banner.wxml             # 公用连接状态横幅
-│   └── pages/                      # 今天 / 课表 / 成绩 / 考试 / 便签 / 设置
+│   └── pages/                      # 今天 / 课表 / 便签 / 成绩 / 考试 / 设置
 │
 ├── docs/
 │   └── cloud_integration_design.md # 云集成设计方案
@@ -211,14 +213,49 @@ powershell -File server\start-all.ps1
 | GET | `/api/scores` | 查询成绩 |
 | GET | `/api/schedule?week=N` | 查询第 N 周课表 |
 | GET | `/api/exams` | 查询考试安排 |
+| GET | `/api/reminders` | 查询便签（支持 `?category=&priority=&done=` 筛选） |
+| POST | `/api/reminders` | 创建便签 |
+| PUT | `/api/reminders/:id` | 更新便签（完成/编辑） |
+| DELETE | `/api/reminders/:id` | 删除便签 |
 
-### 桌面端
+### 桌面端 / AI 桌宠
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/api/pet/poll` | 轮询推送消息 |
-| POST | `/api/pet/reminder` | 添加便签提醒 |
-| POST | `/api/push` | 手动推送测试消息 |
+| POST | `/api/pet/heartbeat` | 桌面端心跳 |
+| POST | `/api/pet/reminder/sync` | 桌面端批量同步便签 |
+| GET | `/api/pet/overview` | **AI 统一数据概览**（教务+便签+记忆+今日课表+即将考试） |
+| GET | `/api/pet/memory` | 查询 AI 记忆 |
+| POST | `/api/pet/memory` | 新增/更新单条记忆 |
+| POST | `/api/pet/memory/batch` | 批量记忆同步 |
+| POST | `/api/pet/interaction` | 记录 AI 互动日志 |
+| GET | `/api/pet/interactions` | 查询互动历史 |
+| POST | `/api/pet/reminder/auto` | **AI 智能创建便签**（自动分类+标签） |
+| POST | `/api/pet/reminder/batch-done` | AI 批量完成便签 |
+
+### AI→DB 数据流
+
+```
+AI System Prompt
+   └─ GET /api/pet/overview → 用户信息 + 统计 + 今日课表 + 待办 + 未来考试 + 全部记忆
+
+AI 决策
+   ├─ POST /api/pet/reminder/auto → 创建便签（自动分类）
+   ├─ POST /api/pet/reminder/batch-done → 完成便签
+   ├─ POST /api/pet/memory → 学习用户习惯
+   └─ POST /api/pet/interaction → 记录对话历史
+```
+
+### 便签 CRUD（小程序 + 桌面端共用）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/reminders?category=&priority=&done=&source=` | 筛选查询 |
+| POST | `/api/reminders` | 创建便签 |
+| PUT | `/api/reminders/:id` | 更新便签 |
+| DELETE | `/api/reminders/:id` | 删除便签 |
+| POST | `/api/reminders/sync` | 批量同步（桌面端→服务端） |
 
 ---
 
@@ -378,9 +415,8 @@ Bridge 登录检查（每 15 分钟）
 | # | 问题 | 描述 |
 |---|------|------|
 | 9 | **课表 teacher/location 字段为空** | `saveScheduleToDB` 中 teacher 和 location 写死了空字符串，未从桥接数据中提取 |
-| 10 | **桌面便签功能未完工** | `reminders` 页面存在，但后端 `pet.js` 和前端 ui 均不完整 |
-| 11 | **暗色/亮色主题切换仅在 Web 端** | 小程序未实现主题切换，统一为暗色 |
-| 12 | **GPA 计算逻辑简单** | `_renderScores` 的 GPA 统计未考虑学分权重和非数字成绩 |
+| 10 | **暗色/亮色主题切换仅在 Web 端** | 小程序未实现主题切换，统一为暗色 |
+| 11 | **GPA 计算逻辑简单** | `_renderScores` 的 GPA 统计未考虑学分权重和非数字成绩 |
 
 ---
 
@@ -395,9 +431,18 @@ Bridge 登录检查（每 15 分钟）
 
 ### v0.4 — 体验优化（下一版本）
 
-- [ ] **日志系统** — 添加 winston，按日期滚动 + 控制台输出
-- [ ] **ngrok URL 配置化** — 从 `.env` 读取，小程序端通过 `/api/config` 获取
-- [ ] **小程序 UI 打磨** — 骨架屏加载、下拉刷新、更好的错误提示
+- [x] **日志系统** — 添加 winston，按日期滚动 + 控制台输出
+- [x] **ngrok URL 配置化** — 从 `.env` 读取，小程序端通过 `/api/config` 获取
+
+### v0.4 — 便签+桌宠联动（当前版本 ✅）
+
+- [x] **便签数据库扩展** — `reminders` 表增加 priority/category/tags/link 字段，AI 语义分类
+- [x] **便签 CRUD API** — 小程序完整增删改查 + 分类筛选
+- [x] **AI 记忆系统** — `pet_memory` 表持久化用户习惯/偏好/事件，置信度评估
+- [x] **AI 互动日志** — `pet_interactions` 表记录所有 AI 对话和行为，满意度追踪
+- [x] **统一数据概览** — `/api/pet/overview` 一键获取全量教务+便签+记忆数据，用于构建 AI System Prompt
+- [x] **AI 智能便签** — 自动分类 + 标签提取 + 批量完成
+- [x] **TabBar 便签入口** — 小程序底部导航新增便签页
 - [ ] **课表教师/地点显示** — 从桥接数据中正确提取并写入 DB
 - [ ] **考试提醒推送** — 考试前 1 天 / 3 天自动发送小程序订阅消息
 - [ ] **多账号支持** — 允许多个学号绑定、切换
