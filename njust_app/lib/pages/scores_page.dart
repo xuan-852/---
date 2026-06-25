@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/models.dart';
+import '../services/theme_provider.dart';
 
 class ScoresPage extends StatefulWidget {
   const ScoresPage({super.key});
@@ -45,7 +46,7 @@ class _ScoresPageState extends State<ScoresPage> {
     }
 
     _semesters = groups.entries.map((e) {
-      final numeric = e.value.where((s) => double.tryParse(s.score) != null).toList();
+      final numeric = e.value.where((s) => _parseNumericScore(s.score) != null).toList();
       double totalGp = 0;
       int totalC = 0;
       for (final s in numeric) {
@@ -62,7 +63,7 @@ class _ScoresPageState extends State<ScoresPage> {
       ..sort((a, b) => b.semester.compareTo(a.semester));
 
     // 总 GPA
-    final allNumeric = allScores.where((s) => double.tryParse(s.score) != null).toList();
+    final allNumeric = allScores.where((s) => _parseNumericScore(s.score) != null).toList();
     double totalGP = 0;
     int totalC = 0;
     for (final s in allNumeric) {
@@ -126,7 +127,7 @@ class _ScoresPageState extends State<ScoresPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: ThemeProvider().cardBg,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -143,18 +144,18 @@ class _ScoresPageState extends State<ScoresPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(sg.semester,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 15)),
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 15, color: ThemeProvider().primaryText)),
                         const SizedBox(height: 4),
                         Text('${sg.scores.length}门课 · GPA ${sg.gpa.toStringAsFixed(2)}',
                             style: TextStyle(
-                                color: Colors.grey[400], fontSize: 13)),
+                                color: ThemeProvider().secondaryText, fontSize: 13)),
                       ],
                     ),
                   ),
                   Icon(
                     sg.expanded ? Icons.expand_less : Icons.expand_more,
-                    color: Colors.grey,
+                    color: ThemeProvider().secondaryText,
                   ),
                 ],
               ),
@@ -167,8 +168,18 @@ class _ScoresPageState extends State<ScoresPage> {
     );
   }
 
+  double? _parseNumericScore(String score) {
+    final val = double.tryParse(score);
+    if (val != null) return val;
+    const map = {
+      '优': 90, '优-': 87, '良+': 83, '良': 80, '良-': 76,
+      '中+': 73, '中': 70, '中-': 66, '及格': 60, '不及格': 0,
+    };
+    return map[score.trim()]?.toDouble();
+  }
+
   Widget _buildScoreItem(Score s) {
-    final scoreVal = double.tryParse(s.score);
+    final scoreVal = _parseNumericScore(s.score);
     Color scoreColor;
     if (scoreVal == null) {
       scoreColor = Colors.grey;
@@ -187,7 +198,7 @@ class _ScoresPageState extends State<ScoresPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: Colors.white10)),
+        border: Border(top: BorderSide(color: ThemeProvider().border)),
       ),
       child: Row(
         children: [
@@ -195,9 +206,9 @@ class _ScoresPageState extends State<ScoresPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(s.name, style: const TextStyle(fontSize: 14)),
-                Text('${s.credit.toStringAsFixed(0)}学分',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                Text(s.name, style: TextStyle(fontSize: 14, color: scoreColor.withOpacity(0.75))),
+                Text('${s.credit.toStringAsFixed(0)}学分  ${s.scoreType ?? ''}',
+                    style: TextStyle(color: ThemeProvider().secondaryText, fontSize: 12)),
               ],
             ),
           ),
@@ -208,7 +219,9 @@ class _ScoresPageState extends State<ScoresPage> {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              s.score,
+              double.tryParse(s.score) == null && scoreVal != null
+                  ? '${s.score} (${scoreVal.toInt()})'
+                  : s.score,
               style: TextStyle(
                 color: scoreColor,
                 fontWeight: FontWeight.bold,
@@ -219,7 +232,7 @@ class _ScoresPageState extends State<ScoresPage> {
           const SizedBox(width: 8),
           Text(
             s.gpaPoint.toStringAsFixed(1),
-            style: TextStyle(color: Colors.grey[500], fontSize: 12),
+            style: TextStyle(color: ThemeProvider().secondaryText, fontSize: 12),
           ),
         ],
       ),

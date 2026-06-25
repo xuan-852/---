@@ -119,7 +119,15 @@ class Score {
   }
 
   double get gpaPoint {
-    final val = double.tryParse(score);
+    double? val = double.tryParse(score);
+    if (val == null) {
+      // 中文等级 → 映射为数值
+      const map = {
+        '优': 90, '优-': 87, '良+': 83, '良': 80, '良-': 76,
+        '中+': 73, '中': 70, '中-': 66, '及格': 60, '不及格': 0,
+      };
+      val = map[score.trim()]?.toDouble();
+    }
     if (val == null || val < 60) return 0;
     final g = (val - 50) / 10;
     return g.clamp(0, 4.0);
@@ -134,6 +142,8 @@ class Exam {
   final String? location;
   final String? seatNumber;
   final String? status;
+  final String? startTime;
+  final String? endTime;
 
   Exam({
     required this.name,
@@ -142,17 +152,67 @@ class Exam {
     this.location,
     this.seatNumber,
     this.status,
+    this.startTime,
+    this.endTime,
   });
 
   factory Exam.fromJson(Map<String, dynamic> json) {
+    // 兼容 DB 字段 (exam_date, start_time, end_time) 和 API 字段 (date, time)
+    final rawDate = json['exam_date'] as String? ?? json['date'] as String?;
+    final rawStart = json['start_time'] as String?;
+    final rawEnd = json['end_time'] as String?;
+    final rawTime = json['time'] as String?;
+
+    String? formattedTime;
+    if (rawTime != null) {
+      formattedTime = rawTime;
+    } else if (rawStart != null && rawEnd != null) {
+      formattedTime = '$rawStart-$rawEnd';
+    } else if (rawStart != null) {
+      formattedTime = rawStart;
+    }
+
     return Exam(
       name: json['name'] as String? ?? json['course_name'] as String? ?? '',
-      date: json['date'] as String?,
-      time: json['time'] as String?,
+      date: rawDate,
+      time: formattedTime,
       location: json['location'] as String? ?? json['classroom'] as String?,
       seatNumber: json['seat_number'] as String?,
       status: json['status'] as String?,
+      startTime: rawStart,
+      endTime: rawEnd,
     );
+  }
+
+  /// 考试是否已经结束（根据日期+结束时间判断）
+  bool get isFinished {
+    if (date == null) return false;
+    try {
+      final examDate = DateTime.parse(date!);
+      final now = DateTime.now();
+      // 只比较日期：考试日期 < 今天 → 已过
+      if (examDate.year < now.year ||
+          (examDate.year == now.year && examDate.month < now.month) ||
+          (examDate.year == now.year && examDate.month == now.month && examDate.day < now.day)) {
+        return true;
+      }
+      // 同一天 + 有结束时间 → 比较时间
+      if (endTime != null &&
+          examDate.year == now.year &&
+          examDate.month == now.month &&
+          examDate.day == now.day) {
+        final parts = endTime!.split(':');
+        if (parts.length == 2) {
+          final endHour = int.tryParse(parts[0]) ?? 0;
+          final endMin = int.tryParse(parts[1]) ?? 0;
+          final endDt = DateTime(now.year, now.month, now.day, endHour, endMin);
+          return now.isAfter(endDt);
+        }
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
   }
 }
 

@@ -5,6 +5,7 @@ const njust = require('../services/njust');
 const crypto = require('crypto');
 const axios = require('axios');
 const log = require('../utils/logger');
+const { v4: uuidv4 } = require('uuid');
 
 // ===== 桥接服务配置 =====
 const BRIDGE_URL = process.env.BRIDGE_URL || 'http://localhost:3456';
@@ -466,7 +467,6 @@ router.post('/reminders', auth, (req, res) => {
     return res.status(400).json({ status: 'error', message: '内容不能为空' });
   }
 
-  const { v4: uuidv4 } = require('uuid');
   const db = getDB();
   const id = uuidv4();
 
@@ -475,6 +475,9 @@ router.post('/reminders', auth, (req, res) => {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'miniprogram')`,
     [id, text.trim(), remind_at || null, priority || 0, category || 'default', tags || '', link_type || '', link_id || '']
   );
+
+  // 桌宠同步：推送便签创建消息 + 记录互动
+  _notifyPetReminder(db, 'created', id, text.trim());
 
   log.info(`[Reminders] 创建便签: ${id}`);
   res.json({ status: 'ok', data: { id } });
@@ -508,6 +511,18 @@ router.put('/reminders/:id', auth, (req, res) => {
   params.push(id);
 
   db.run(`UPDATE reminders SET ${updates.join(', ')} WHERE id = ?`, params);
+
+  // 桌宠同步：推送便签更新/完成消息
+  if (done !== undefined) {
+    const row = db.prepare('SELECT text, done FROM reminders WHERE id = ?').get(id);
+    if (row) {
+      _notifyPetReminder(db, row.done ? 'done' : 'undone', id, row.text);
+    }
+  } else {
+    const row = db.prepare('SELECT text FROM reminders WHERE id = ?').get(id);
+    if (row) _notifyPetReminder(db, 'updated', id, row.text);
+  }
+
   log.info(`[Reminders] 更新便签: ${id}`);
   res.json({ status: 'ok' });
 });
@@ -516,7 +531,15 @@ router.put('/reminders/:id', auth, (req, res) => {
 router.delete('/reminders/:id', auth, (req, res) => {
   const { id } = req.params;
   const db = getDB();
+
+  // 记录被删便签内容用于通知
+  const row = db.prepare('SELECT text FROM reminders WHERE id = ?').get(id);
+
   db.run('DELETE FROM reminders WHERE id = ?', [id]);
+
+  // 桌宠同步：通知便签被删除
+  if (row) _notifyPetReminder(db, 'deleted', id, row.text);
+
   log.info(`[Reminders] 删除便签: ${id}`);
   res.json({ status: 'ok' });
 });
@@ -560,7 +583,6 @@ router.post('/push', auth, (req, res) => {
     return res.status(400).json({ status: 'error', message: '缺少必填字段' });
   }
 
-  const { v4: uuidv4 } = require('uuid');
   const db = getDB();
   const id = uuidv4();
 
@@ -573,3 +595,34 @@ router.post('/push', auth, (req, res) => {
 });
 
 module.exports = router;
+
+// ───── 便签→桌宠同步辅助 ─────
+
+/**
+ * 通知桌宠便签变更：写 push_message + pet_interaction
+ */
+function _notifyPetReminder(db, action, id, text) {
+  const now = new Date().toISOString();
+  const titles = {
+    created: '📌 新便签',
+    updated: '✏️ 便签已更新',
+    done: '✅ 便签已完成',
+    undone: '↩️ 便签恢复待办',
+    deleted: '🗑️ 便签已删除',
+  };
+  const title = titles[action] || '📋 便签变更';
+
+  // push_message → 桌面端轮询消费
+  db.run(
+    `INSERT INTO push_messages (id, type, title, body, payload) VALUES (?, ?, ?, ?, ?)`,
+    [uuidv4(), 'custom', title, text, JSON.stringify({ action, reminderId: id })]
+  );
+
+  // pet_interaction → 桌宠 AI 学习
+  db.run(
+    `INSERT INTO pet_interactions (id, type, content, metadata) VALUES (?, ?, ?, ?)`,
+    [uuidv4(), 'reminder_' + action, text, JSON.stringify({ reminderId: id, action })]
+  );
+
+  log.info(`[PetSync] 便签 ${action}: ${id} → "${text.substring(0, 40)}"`);
+}
