@@ -48,16 +48,16 @@ class _ScoresPageState extends State<ScoresPage> {
     _semesters = groups.entries.map((e) {
       final numeric = e.value.where((s) => _parseNumericScore(s.score) != null).toList();
       double totalGp = 0;
-      int totalC = 0;
+      double totalC = 0;
       for (final s in numeric) {
         totalGp += s.gpaPoint * s.credit;
-        totalC += s.credit.toInt();
+        totalC += s.credit;
       }
       return SemesterGroup(
         semester: e.key,
         scores: e.value,
         gpa: totalC > 0 ? (totalGp / totalC) : 0,
-        totalCredits: totalC,
+        totalCredits: totalC.toInt(),
       );
     }).toList()
       ..sort((a, b) => b.semester.compareTo(a.semester));
@@ -65,13 +65,13 @@ class _ScoresPageState extends State<ScoresPage> {
     // 总 GPA
     final allNumeric = allScores.where((s) => _parseNumericScore(s.score) != null).toList();
     double totalGP = 0;
-    int totalC = 0;
+    double totalC = 0;
     for (final s in allNumeric) {
       totalGP += s.gpaPoint * s.credit;
-      totalC += s.credit.toInt();
+      totalC += s.credit;
     }
     _totalGpa = totalC > 0 ? totalGP / totalC : 0;
-    _totalCredits = totalC;
+    _totalCredits = totalC.toInt();
 
     if (_semesters.isNotEmpty) _semesters[0].expanded = true;
   }
@@ -206,8 +206,12 @@ class _ScoresPageState extends State<ScoresPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(s.name, style: TextStyle(fontSize: 14, color: scoreColor.withOpacity(0.75))),
-                Text('${s.credit.toStringAsFixed(0)}学分  ${s.scoreType ?? ''}',
+                Text(s.name,
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: ThemeProvider().primaryText)),
+                Text('${s.credit.toStringAsFixed(1)}学分  ${s.scoreType ?? ''}',
                     style: TextStyle(color: ThemeProvider().secondaryText, fontSize: 12)),
               ],
             ),
