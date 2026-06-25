@@ -109,6 +109,12 @@
   text-decoration: line-through;
   color: #666;
 }
+.reminder-text.expired-text {
+  text-decoration: line-through;
+  color: #888;
+}
+
+.reminder-card.expired { opacity: 0.55; }
 
 .reminder-meta {
   display: flex;

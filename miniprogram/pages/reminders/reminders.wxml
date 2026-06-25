@@ -7,7 +7,7 @@
     <view class="header-top">
       <text class="section-title">📋 便签本</text>
       <view class="header-actions">
-        <text class="badge-pending">{{getPendingCount()}} 待办</text>
+        <text class="badge-pending">{{pendingCount}} 待办</text>
         <button class="btn-add" bindtap="openNewForm">＋ 新建</button>
       </view>
     </view>
@@ -36,16 +36,16 @@
   </view>
 
   <view wx:else class="reminder-list">
-    <view wx:for="{{reminders}}" wx:key="id" class="reminder-card {{item.done ? 'done' : ''}}"
+      <view wx:for="{{reminders}}" wx:key="id" class="reminder-card {{item._cardClass}}"
       data-item="{{item}}" bindtap="toggleDone">
       <view class="reminder-left">
         <!-- 优先级标记 -->
         <view class="priority-dot" style="background: {{priorityMap[item.priority || 0].color}}"></view>
         <view class="reminder-content">
-          <text class="reminder-text {{item.done ? 'done-text' : ''}}">{{item.text}}</text>
+          <text class="reminder-text {{item._textClass}}">{{item.text}}</text>
           <view class="reminder-meta">
-            <text class="meta-tag" style="border-color: {{getCategoryLabel(item.category).includes('📝') ? '#ff4d6d' : getCategoryLabel(item.category).includes('📚') ? '#4dff88' : getCategoryLabel(item.category).includes('🎯') ? '#ff884d' : getCategoryLabel(item.category).includes('💼') ? '#4dd4ff' : getCategoryLabel(item.category).includes('❤️') ? '#ff6b9d' : '#7c4dff'}}">
-              {{getCategoryLabel(item.category)}}
+            <text class="meta-tag" style="border-color: {{categoryColorMap[item.category] || '#7c4dff'}}">
+              {{categoryLabelMap[item.category] || '📋 通用'}}
             </text>
             <text wx:if="{{item.remind_at}}" class="meta-time">⏰ {{item.remind_at}}</text>
             <text wx:if="{{item.tags}}" class="meta-tags">🏷️ {{item.tags}}</text>
@@ -63,7 +63,7 @@
   <!-- 新建/编辑表单（弹窗） -->
   <view wx:if="{{showForm}}" class="form-overlay" bindtap="closeForm">
     <view class="form-dialog" catchtap="noop">
-      <text class="form-title">{{editingId ? '编辑便签' : '新建便签'}}</text>
+      <text class="form-title">{{formTitle}}</text>
 
       <textarea class="form-textarea" placeholder="写下你的便签内容..." value="{{formText}}" bindinput="onTextInput" maxlength="500" auto-height />
 
@@ -76,8 +76,8 @@
 
       <view class="form-row">
         <text class="form-label">分类</text>
-        <picker mode="selector" range="{{categories.map(c => c.label)}}" value="{{categories.findIndex(c => c.key === formCategory)}}" bindchange="onCategoryChange">
-          <text class="form-value">{{categories.find(c => c.key === formCategory)?.label || '通用'}}</text>
+        <picker mode="selector" range="{{categoryLabels}}" value="{{formCategoryIndex}}" bindchange="onCategoryChange">
+          <text class="form-value">{{categoryLabels[formCategoryIndex]}}</text>
         </picker>
       </view>
 
@@ -88,8 +88,8 @@
 
       <view class="form-buttons">
         <button class="btn-cancel" bindtap="closeForm">取消</button>
-        <button class="btn-submit" bindtap="submitForm" disabled="{{submitting || !formText.trim()}}">
-          {{submitting ? '提交中...' : (editingId ? '保存' : '创建')}}
+        <button class="btn-submit" bindtap="submitForm" disabled="{{submitting || !formText}}">
+          {{submitting ? '提交中...' : submitBtnText}}
         </button>
       </view>
     </view>
