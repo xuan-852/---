@@ -5,6 +5,6 @@ int main() {
     int tem = 0;
     tem = a + b;
     printf("a+b = %d\n",tem);
-    printf("Hello, World!\n");
+    printf("Hello, Fuxuan!\n");
     return 0;
 }
