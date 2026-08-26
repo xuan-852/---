@@ -59,6 +59,8 @@ Image corrode(const Image& input){
                         if(newRow >= 0 && newRow < SIZE && newCol >= 0 && newCol < SIZE){
                             if(input[newRow][newCol] != '#'){//如果周围有'.'，则该位置不能为'#'
                                 output[row][col] = '.';
+                            }else{
+                                output[row][col] = '#';
                             }
                         }
                     }
