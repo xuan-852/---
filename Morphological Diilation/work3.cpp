@@ -3,6 +3,7 @@
 #include <string>
 
 constexpr int SIZE = 12;
+int flag = 0;
 
 using Image = std::array<std::array<char, SIZE>, SIZE>;
 
@@ -59,13 +60,19 @@ Image corrode(const Image& input){
                         if(newRow >= 0 && newRow < SIZE && newCol >= 0 && newCol < SIZE){
                             if(input[newRow][newCol] != '#'){//如果周围有'.'，则该位置不能为'#'
                                 output[row][col] = '.';
+                                flag = 1;
+                                break;
                             }else{
                                 output[row][col] = '#';
                             }
                         }
                     }
-                }
+                    if(flag == 1){
+                        flag = 0;
+                        break;
+                        }
 
+               }
             }
         }
     }
@@ -96,7 +103,7 @@ int main() {
     }
 
     const Image output_dil = dilate(input);
-    const Image output_cor = corrode(input);
+    const Image output_cor = corrode(output_dil);
 
     std::cout << "\n使用3x3结构元素膨胀后的结果：\n";
     for (const auto& row : output_dil) {
