@@ -6,5 +6,6 @@ int main() {
     tem = a + b;
     printf("a+b = %d\n",tem);
     printf("Hello, Fuxuan!\n");
+    printf("Test branch");
     return 0;
 }
