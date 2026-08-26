@@ -38,6 +38,39 @@ Image dilate(const Image& input) {
     return output;
 }
 
+Image corrode(const Image& input){
+    Image output{};
+
+//先把输出全部初始化为'.',后面根据输入来读取并修改   
+    for (auto& row : output) {
+        row.fill('.');
+    }
+
+//进行读取位置编写
+    for (int row = 0; row < SIZE; ++row) {
+        for (int col = 0; col < SIZE; ++col) {
+            if (input[row][col] != '#') {//如果输入的图像不是'#'，则继续寻找
+                continue;
+            }else{
+                for(int dir = -1;dir <= 1;dir++){
+                    for(int dic = -1;dic <= 1;dic++){
+                        int newRow = row + dir;
+                        int newCol = col + dic;
+                        if(newRow >= 0 && newRow < SIZE && newCol >= 0 && newCol < SIZE){
+                            if(input[newRow][newCol] != '#'){//如果周围有'.'，则该位置不能为'#'
+                                output[row][col] = '.';
+                            }
+                        }
+                    }
+                }
+
+            }
+        }
+    }
+//返回我们处理后的图像
+    return output;
+}
+
 int main() {
     Image input{};
     std::string line;
@@ -60,10 +93,19 @@ int main() {
         }
     }
 
-    const Image output = dilate(input);
+    const Image output_dil = dilate(input);
+    const Image output_cor = corrode(input);
 
     std::cout << "\n使用3x3结构元素膨胀后的结果：\n";
-    for (const auto& row : output) {
+    for (const auto& row : output_dil) {
+        for (char pixel : row) {
+            std::cout << pixel;
+        }
+        std::cout << '\n';
+    }
+
+    std::cout << "\n使用3x3结构元素腐蚀后的结果：\n";
+    for (const auto& row : output_cor) {
         for (char pixel : row) {
             std::cout << pixel;
         }
