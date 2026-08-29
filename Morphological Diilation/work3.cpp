@@ -2,12 +2,13 @@
 #include <iostream>
 #include <string>
 
+// 输入图像为 12×12，结构元素为 5×5。
 constexpr int SIZE = 12;
 int flag = 0;
 
 using Image = std::array<std::array<char, SIZE>, SIZE>;
 
-// 使用 3x3 的全“#”结构元素进行膨胀。
+// 使用 5x5 的全“#”结构元素进行膨胀。
 Image dilate(const Image& input) {
     Image output{};
 
@@ -21,9 +22,9 @@ Image dilate(const Image& input) {
                 continue;
             }
 
-            // 让当前“#”覆盖以它为中心的 3x3 区域。
-            for (int dr = -1; dr <= 1; ++dr) {
-                for (int dc = -1; dc <= 1; ++dc) {
+            // 让当前“#”覆盖以它为中心的 5x5 区域。
+            for (int dr = -2; dr <= 2; ++dr) {
+                for (int dc = -2; dc <= 2; ++dc) {
                     const int newRow = row + dr;
                     const int newCol = col + dc;
 
@@ -53,8 +54,8 @@ Image corrode(const Image& input){
             if (input[row][col] != '#') {//如果输入的图像不是'#'，则继续寻找
                 continue;
             }else{
-                for(int dir = -1;dir <= 1;dir++){
-                    for(int dic = -1;dic <= 1;dic++){
+                    for(int dir = -2;dir <= 2;dir++){
+                    for(int dic = -2;dic <= 2;dic++){
                         int newRow = row + dir;
                         int newCol = col + dic;
                         if(newRow >= 0 && newRow < SIZE && newCol >= 0 && newCol < SIZE){
@@ -105,7 +106,7 @@ int main() {
     const Image output_dil = dilate(input);
     const Image output_cor = corrode(output_dil);
 
-    std::cout << "\n使用3x3结构元素膨胀后的结果：\n";
+    std::cout << "\n使用5x5结构元素膨胀后的结果：\n";
     for (const auto& row : output_dil) {
         for (char pixel : row) {
             std::cout << pixel;
@@ -113,7 +114,7 @@ int main() {
         std::cout << '\n';
     }
 
-    std::cout << "\n使用3x3结构元素腐蚀后的结果：\n";
+    std::cout << "\n使用5x5结构元素腐蚀后的结果：\n";
     for (const auto& row : output_cor) {
         for (char pixel : row) {
             std::cout << pixel;
